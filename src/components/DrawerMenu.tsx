@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 type DrawerMenuProps = {
   visible: boolean;
@@ -20,6 +21,7 @@ type DrawerMenuProps = {
 
 export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps) => {
   const { signOut, user } = useAuth();
+  const { theme, colors, toggleTheme } = useTheme();
   const [slideAnim] = useState(new Animated.Value(300));
   const insets = useSafeAreaInsets();
 
@@ -50,6 +52,10 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
     onClose();
     // TODO: Navigate to Settings screen
     Alert.alert('Settings', 'Settings screen coming soon!');
+  };
+
+  const handleThemeToggle = () => {
+    toggleTheme();
   };
 
   const handleLogout = () => {
@@ -92,21 +98,23 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
               style={[
                 styles.drawer,
                 {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
                   transform: [{ translateX: slideAnim }],
                   paddingTop: topOffset > 0 ? insets.top + topOffset : insets.top,
                 },
               ]}
             >
-              <View style={[styles.drawerHeader, { paddingTop: topOffset > 0 ? 0 : 20 }]}>
-                <Text style={styles.drawerTitle}>Menu</Text>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
+              <View style={[styles.drawerHeader, { borderBottomColor: colors.border, paddingTop: topOffset > 0 ? 0 : 20 }]}>
+                <Text style={[styles.drawerTitle, { color: colors.primary }]}>Menu</Text>
+                <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.closeButtonText, { color: colors.primary }]}>✕</Text>
                 </TouchableOpacity>
               </View>
 
               {user && (
-                <View style={styles.userInfo}>
-                  <Text style={styles.userEmail}>{user.email}</Text>
+                <View style={[styles.userInfo, { borderBottomColor: colors.border }]}>
+                  <Text style={[styles.userEmail, { color: colors.primary }]}>{user.email}</Text>
                 </View>
               )}
 
@@ -117,7 +125,7 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
                   activeOpacity={0.7}
                 >
                   <Text style={styles.menuItemIcon}>👤</Text>
-                  <Text style={styles.menuItemText}>Profile</Text>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>Profile</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -126,10 +134,23 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
                   activeOpacity={0.7}
                 >
                   <Text style={styles.menuItemIcon}>⚙️</Text>
-                  <Text style={styles.menuItemText}>Settings</Text>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
                 </TouchableOpacity>
 
-                <View style={styles.divider} />
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleThemeToggle}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuItemIcon}>
+                    {theme === 'dark' ? '☀️' : '🌙'}
+                  </Text>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.logoutItem]}
@@ -137,7 +158,7 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
                   activeOpacity={0.7}
                 >
                   <Text style={styles.menuItemIcon}>🚪</Text>
-                  <Text style={[styles.menuItemText, styles.logoutText]}>
+                  <Text style={[styles.menuItemText, styles.logoutText, { color: colors.primary }]}>
                     Logout
                   </Text>
                 </TouchableOpacity>
@@ -160,7 +181,6 @@ const styles = StyleSheet.create({
   drawer: {
     width: 280,
     height: '100%',
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
     shadowColor: '#FF6B9D',
@@ -169,7 +189,6 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 20,
     borderWidth: 3,
-    borderColor: '#FFE5ED',
     borderRightWidth: 0,
   },
   drawerHeader: {
@@ -179,35 +198,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 20,
     borderBottomWidth: 2,
-    borderBottomColor: '#FFE5ED',
   },
   drawerTitle: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#FF6B9D',
     letterSpacing: 1,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFE5ED',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
     fontSize: 20,
-    color: '#FF6B9D',
     fontWeight: '700',
   },
   userInfo: {
     padding: 20,
     borderBottomWidth: 2,
-    borderBottomColor: '#FFE5ED',
   },
   userEmail: {
     fontSize: 15,
-    color: '#FF6B9D',
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -228,12 +241,10 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
     letterSpacing: 0.5,
   },
   divider: {
     height: 2,
-    backgroundColor: '#FFE5ED',
     marginVertical: 8,
     marginHorizontal: 24,
   },
@@ -241,7 +252,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   logoutText: {
-    color: '#FF6B9D',
+    // Color applied dynamically
   },
 });
 

@@ -18,6 +18,7 @@ import { ARCameraScreen } from './src/screens/ARCameraScreen';
 import { capitalize } from './src/utils/pokemon';
 import LoadingScreen from './LoadingScreen';
 import { AuthProvider, useAuth } from './AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import LoginScreen from './LoginScreen';
 import SignupScreen from './SignupScreen';
 import { DrawerMenu } from './src/components/DrawerMenu';
@@ -25,35 +26,39 @@ import { DrawerMenu } from './src/components/DrawerMenu';
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const screenOptions: NativeStackNavigationOptions = {
+const getScreenOptions = (colors: any): NativeStackNavigationOptions => ({
   headerStyle: { 
-    backgroundColor: '#FF6B9D',
+    backgroundColor: colors.primary,
   },
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: '800', fontSize: 20 },
   headerShadowVisible: false,
-  contentStyle: { backgroundColor: '#FFF5F8' },
-};
+  contentStyle: { backgroundColor: colors.background },
+});
 
-const PokedexTab = () => (
-  <MainStack.Navigator screenOptions={screenOptions}>
-    <MainStack.Screen name="Pokedex" component={PokedexScreen} options={{ title: 'Pokédex', headerShown: false }} />
-    <MainStack.Screen
-      name="PokemonDetail"
-      component={PokemonDetailScreen}
-      options={({ route }) => ({
-        title: capitalize(route.params.name),
-      })}
-    />
-  </MainStack.Navigator>
-);
+const PokedexTab = () => {
+  const { colors } = useTheme();
+  return (
+    <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
+      <MainStack.Screen name="Pokedex" component={PokedexScreen} options={{ title: 'Pokédex', headerShown: false }} />
+      <MainStack.Screen
+        name="PokemonDetail"
+        component={PokemonDetailScreen}
+        options={({ route }) => ({
+          title: capitalize(route.params.name),
+        })}
+      />
+    </MainStack.Navigator>
+  );
+};
 
 const HuntTabWithMenu = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const { colors } = useTheme();
   
   return (
     <>
-      <MainStack.Navigator screenOptions={screenOptions}>
+      <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
         <MainStack.Screen 
           name="Hunt" 
           component={HuntScreen} 
@@ -85,11 +90,14 @@ const HuntTabWithMenu = () => {
 
 const HuntTab = () => <HuntTabWithMenu />;
 
-const ARCameraTab = () => (
-  <MainStack.Navigator screenOptions={screenOptions}>
-    <MainStack.Screen name="ARCamera" component={ARCameraScreen} options={{ title: 'AR Camera', headerShown: false }} />
-  </MainStack.Navigator>
-);
+const ARCameraTab = () => {
+  const { colors } = useTheme();
+  return (
+    <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
+      <MainStack.Screen name="ARCamera" component={ARCameraScreen} options={{ title: 'AR Camera', headerShown: false }} />
+    </MainStack.Navigator>
+  );
+};
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -109,18 +117,34 @@ function App() {
 
   return (
     <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <StatusBar barStyle="light-content" backgroundColor="#FF6B9D" />
-          <AppContent />
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
+      <ThemeProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <AppContentWithTheme />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </ThemeProvider>
     </AuthProvider>
+  );
+}
+
+function AppContentWithTheme() {
+  const { theme, colors } = useTheme();
+  
+  return (
+    <>
+      <StatusBar 
+        barStyle={theme === 'dark' ? 'light-content' : 'light-content'} 
+        backgroundColor={colors.primary} 
+      />
+      <AppContent />
+    </>
   );
 }
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const { colors } = useTheme();
   const [hasSeenAuth, setHasSeenAuth] = useState<boolean | null>(null);
   const [showLogin, setShowLogin] = useState(true);
 
@@ -149,8 +173,8 @@ function AppContent() {
 
   if (loading || hasSeenAuth === null) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B9D" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -169,17 +193,17 @@ function AppContent() {
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: '#FF6B9D',
-          tabBarInactiveTintColor: '#A8A8A8',
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textSecondary,
           tabBarStyle: {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#F0F0F0',
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
             borderTopWidth: 2,
             paddingBottom: 10,
             paddingTop: 10,
             height: 70,
             elevation: 25,
-            shadowColor: '#FF6B9D',
+            shadowColor: colors.shadow,
             shadowOffset: { width: 0, height: -4 },
             shadowOpacity: 0.2,
             shadowRadius: 12,
@@ -251,7 +275,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF5F8',
   },
   tabIcon: {
     fontSize: 26,

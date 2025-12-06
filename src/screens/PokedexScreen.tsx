@@ -17,6 +17,7 @@ import { SearchAndFilter } from '../components/SearchAndFilter';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { usePokemonList } from '../hooks/usePokemonList';
 import { MainStackParamList } from '../navigation/types';
+import { useTheme } from '../context/ThemeContext';
 import {
   startVoiceSearch,
   stopVoiceSearch,
@@ -45,6 +46,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
   const [isVoiceSearching, setIsVoiceSearching] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { theme, colors } = useTheme();
 
   useEffect(() => {
     return () => {
@@ -84,19 +86,36 @@ export const PokedexScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 20 }]}>
       {/* ✅ HEADER */}
       <View style={styles.headerRow}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Pokédex</Text>
+          <Text
+            style={[
+              styles.headerTitle,
+              {
+                color: colors.primary,
+                textShadowColor: theme === 'dark' ? 'rgba(255, 107, 157, 0.3)' : 'rgba(255, 107, 157, 0.4)',
+              },
+            ]}
+          >
+            Pokédex
+          </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[
+            styles.menuButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              shadowColor: colors.shadow,
+            },
+          ]}
           onPress={() => setDrawerVisible(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.menuButtonText}>☰</Text>
+          <Text style={[styles.menuButtonText, { color: colors.primary }]}>☰</Text>
         </TouchableOpacity>
       </View>
 
@@ -108,9 +127,9 @@ export const PokedexScreen = ({ navigation }: Props) => {
 
       {/* ✅ ERROR */}
       {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Text style={styles.errorAction}>Pull to refresh</Text>
+        <View style={[styles.errorBanner, { backgroundColor: colors.primaryLight, borderColor: colors.borderLight, borderLeftColor: colors.primary }]}>
+          <Text style={[styles.errorText, { color: colors.primary }]}>{error}</Text>
+          <Text style={[styles.errorAction, { color: colors.primary }]}>Pull to refresh</Text>
         </View>
       )}
 
@@ -130,13 +149,13 @@ export const PokedexScreen = ({ navigation }: Props) => {
         ListEmptyComponent={
           initialLoading ? (
             <View style={styles.loader}>
-              <ActivityIndicator size="large" color="#FF6B9D" />
-              <Text style={styles.loaderText}>Loading Pokédex...</Text>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loaderText, { color: colors.primary }]}>Loading Pokédex...</Text>
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No Pokémon found</Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptyTitle, { color: colors.primary }]}>No Pokémon found</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.primary }]}>
                 Try a different search term or clear your filters.
               </Text>
             </View>
@@ -145,11 +164,11 @@ export const PokedexScreen = ({ navigation }: Props) => {
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator color="#FF6B9D" />
-              <Text style={styles.footerText}>Fetching more Pokémon...</Text>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.footerText, { color: colors.primary }]}>Fetching more Pokémon...</Text>
             </View>
           ) : !hasMore ? (
-            <Text style={styles.footerText}>
+            <Text style={[styles.footerText, { color: colors.primary }]}>
               You have reached the end of the Pokédex.
             </Text>
           ) : null
@@ -158,7 +177,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
           <RefreshControl
             refreshing={initialLoading}
             onRefresh={loadInitial}
-            tintColor="#FF6B9D"
+            tintColor={colors.primary}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -168,7 +187,12 @@ export const PokedexScreen = ({ navigation }: Props) => {
       <View
         style={[
           styles.bottomSearchContainer,
-          { bottom: 70 + insets.bottom }, // ✅ Position closer to tab bar
+          { 
+            bottom: 70 + insets.bottom,
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            shadowColor: colors.shadow,
+          },
         ]}
       >
         <SearchAndFilter
@@ -189,7 +213,6 @@ export const PokedexScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F8',
     paddingHorizontal: 18,
   },
 
@@ -208,9 +231,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 40,
     fontWeight: '900',
-    color: '#FF6B9D',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(255, 107, 157, 0.4)',
     textShadowOffset: { width: 0, height: 3 },
     textShadowRadius: 10,
   },
@@ -227,12 +248,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFFFFF',
     borderWidth: 3,
-    borderColor: '#FFE5ED',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -241,30 +259,24 @@ const styles = StyleSheet.create({
 
   menuButtonText: {
     fontSize: 24,
-    color: '#FF6B9D',
     fontWeight: '700',
   },
 
   errorBanner: {
-    backgroundColor: '#FFE5ED',
     borderRadius: 18,
     padding: 16,
     marginBottom: 18,
     borderLeftWidth: 5,
-    borderLeftColor: '#FF6B9D',
     borderWidth: 2,
-    borderColor: '#FFB3D1',
   },
 
   errorText: {
-    color: '#FF6B9D',
     fontWeight: '700',
     fontSize: 15,
     letterSpacing: 0.3,
   },
 
   errorAction: {
-    color: '#FF6B9D',
     marginTop: 8,
     fontSize: 14,
     fontWeight: '600',
@@ -281,7 +293,6 @@ const styles = StyleSheet.create({
   },
 
   loaderText: {
-    color: '#FF6B9D',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -296,12 +307,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FF6B9D',
     letterSpacing: 0.5,
   },
 
   emptySubtitle: {
-    color: '#FF6B9D',
     textAlign: 'center',
     fontSize: 15,
     fontWeight: '500',
@@ -314,7 +323,6 @@ const styles = StyleSheet.create({
   },
 
   footerText: {
-    color: '#FF6B9D',
     textAlign: 'center',
     paddingVertical: 20,
     fontSize: 15,
@@ -327,13 +335,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 18,
     right: 18,
-    backgroundColor: '#FFF5F8',
     borderTopWidth: 2,
-    borderColor: '#FFE5ED',
     paddingTop: 8,
     paddingBottom: 8,
     borderRadius: 20,
-    shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
