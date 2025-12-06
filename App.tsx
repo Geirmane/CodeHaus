@@ -94,7 +94,15 @@ const ARCameraTab = () => {
   const { colors } = useTheme();
   return (
     <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
-      <MainStack.Screen name="ARCamera" component={ARCameraScreen} options={{ title: 'AR Camera', headerShown: false }} />
+      <MainStack.Screen 
+        name="ARCamera" 
+        component={ARCameraScreen} 
+        options={{ 
+          title: 'AR Camera', 
+          headerShown: false,
+          contentStyle: { backgroundColor: '#000000' }, // Override theme background for camera screen
+        }} 
+      />
     </MainStack.Navigator>
   );
 };

@@ -108,7 +108,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     return (
       <View style={styles.previewContainer}>
         <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="contain" />
-        <View style={styles.previewControls}>
+        <View style={[styles.previewControls, { bottom: 100 + insets.bottom }]}>
           <TouchableOpacity style={styles.previewButton} onPress={() => setCapturedPhoto(null)}>
             <Text style={styles.previewButtonText}>Retake</Text>
           </TouchableOpacity>
@@ -161,7 +161,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         </View>
       )}
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { bottom: 100 + insets.bottom }]}>
         <TouchableOpacity
           style={styles.controlButton}
           onPress={loadRandomPokemon}
@@ -194,7 +194,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
   },
   menuButton: {
     position: 'absolute',
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
+    backgroundColor: '#000000',
   },
   overlay: {
     position: 'absolute',
@@ -249,7 +250,6 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    bottom: 40,
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -336,7 +336,6 @@ const styles = StyleSheet.create({
   },
   previewControls: {
     position: 'absolute',
-    bottom: 40,
     left: 0,
     right: 0,
     flexDirection: 'row',

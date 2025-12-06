@@ -63,18 +63,39 @@ export const PokedexScreen = ({ navigation }: Props) => {
           if (result.isFinal) {
             setSearchText(result.text);
             setIsVoiceSearching(false);
-            stopVoiceSearch();
+            stopVoiceSearch().catch((err) => {
+              console.warn('Error stopping voice search:', err);
+            });
           }
         },
         (error) => {
           setIsVoiceSearching(false);
-          Alert.alert('Voice Search Error', error.message);
-          stopVoiceSearch();
+          console.error('Voice search error:', error);
+          Alert.alert(
+            'Voice Search Error',
+            error.message || 'Failed to start voice search. Please check microphone permissions and try again.',
+            [
+              {
+                text: 'OK',
+                style: 'default',
+              },
+            ]
+          );
+          stopVoiceSearch().catch((err) => {
+            console.warn('Error stopping voice search after error:', err);
+          });
         },
       );
     } catch (error) {
       setIsVoiceSearching(false);
-      Alert.alert('Error', 'Failed to start voice search');
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to start voice search. Please ensure the app is properly built and microphone permissions are granted.';
+      console.error('Voice search catch error:', error);
+      Alert.alert('Error', errorMessage);
+      stopVoiceSearch().catch((err) => {
+        console.warn('Error stopping voice search in catch:', err);
+      });
     }
   }, [setSearchText]);
 

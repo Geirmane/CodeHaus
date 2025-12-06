@@ -8,6 +8,24 @@ export type VoiceSearchResult = {
 
 let isInitialized = false;
 
+// Check if Voice module is available
+const isVoiceAvailable = (): boolean => {
+  try {
+    if (!Voice) {
+      return false;
+    }
+    // Check if essential methods exist
+    return (
+      typeof Voice.start === 'function' &&
+      typeof Voice.stop === 'function' &&
+      typeof Voice.isAvailable === 'function'
+    );
+  } catch (error) {
+    console.warn('Voice module not available:', error);
+    return false;
+  }
+};
+
 const requestMicrophonePermission = async (): Promise<boolean> => {
   if (Platform.OS === 'android') {
     try {
@@ -31,19 +49,30 @@ const requestMicrophonePermission = async (): Promise<boolean> => {
 };
 
 export const initializeVoiceSearch = async (): Promise<boolean> => {
+  if (!isVoiceAvailable()) {
+    console.error('Voice module is not available. Make sure @react-native-voice/voice is properly linked.');
+    return false;
+  }
+
   if (isInitialized) {
     return true;
   }
 
   const hasPermission = await requestMicrophonePermission();
   if (!hasPermission) {
+    console.warn('Microphone permission not granted');
     return false;
   }
 
   try {
-    await Voice.isAvailable();
-    isInitialized = true;
-    return true;
+    const available = await Voice.isAvailable();
+    if (available) {
+      isInitialized = true;
+      return true;
+    } else {
+      console.warn('Voice recognition is not available on this device');
+      return false;
+    }
   } catch (error) {
     console.warn('Voice initialization error:', error);
     return false;
@@ -56,8 +85,24 @@ export const startVoiceSearch = (
 ): Promise<void> => {
   return new Promise(async (resolve, reject) => {
     try {
-      await initializeVoiceSearch();
+      // Check if Voice module is available
+      if (!isVoiceAvailable()) {
+        const error = new Error('Voice recognition is not available. Please ensure the app is properly built and the voice module is linked.');
+        onError(error);
+        reject(error);
+        return;
+      }
 
+      // Initialize voice search
+      const initialized = await initializeVoiceSearch();
+      if (!initialized) {
+        const error = new Error('Failed to initialize voice search. Please check microphone permissions.');
+        onError(error);
+        reject(error);
+        return;
+      }
+
+      // Set up event handlers
       Voice.onSpeechStart = () => {
         console.log('Voice search started');
       };
@@ -71,7 +116,9 @@ export const startVoiceSearch = (
       };
 
       Voice.onSpeechError = (e) => {
-        const error = new Error(e.error?.message || 'Voice recognition error');
+        console.error('Speech error:', e);
+        const errorMessage = e.error?.message || e.error || 'Voice recognition error';
+        const error = new Error(errorMessage);
         onError(error);
         reject(error);
       };
@@ -96,10 +143,15 @@ export const startVoiceSearch = (
         }
       };
 
+      // Start voice recognition
       await Voice.start('en-US');
       resolve();
     } catch (error) {
-      const err = error instanceof Error ? error : new Error('Failed to start voice search');
+      console.error('Error starting voice search:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : String(error) || 'Failed to start voice search';
+      const err = new Error(errorMessage);
       onError(err);
       reject(err);
     }
@@ -108,6 +160,9 @@ export const startVoiceSearch = (
 
 export const stopVoiceSearch = async (): Promise<void> => {
   try {
+    if (!isVoiceAvailable()) {
+      return;
+    }
     await Voice.stop();
     await Voice.cancel();
   } catch (error) {
@@ -117,10 +172,15 @@ export const stopVoiceSearch = async (): Promise<void> => {
 
 export const destroyVoiceSearch = async (): Promise<void> => {
   try {
+    if (!isVoiceAvailable()) {
+      isInitialized = false;
+      return;
+    }
     await Voice.destroy();
     isInitialized = false;
   } catch (error) {
     console.warn('Error destroying voice search:', error);
+    isInitialized = false;
   }
 };
 
