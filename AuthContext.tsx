@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { configureGoogleSignIn } from './firebase/googleSignIn';
+import { configureGoogleSignIn } from './src/firebase/googleSignIn';
 
 type AuthContextType = {
   user: FirebaseAuthTypes.User | null;
