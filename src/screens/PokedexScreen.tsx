@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,6 +8,7 @@ import {
   View,
   Alert,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,13 +46,69 @@ export const PokedexScreen = ({ navigation }: Props) => {
 
   const [isVoiceSearching, setIsVoiceSearching] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
   const insets = useSafeAreaInsets();
   const { theme, colors } = useTheme();
+  const searchBarOpacity = useRef(new Animated.Value(0)).current;
+  const searchBarTranslateY = useRef(new Animated.Value(20)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     return () => {
       destroyVoiceSearch();
     };
+  }, []);
+
+  useEffect(() => {
+    if (isScrolling) {
+      // Show search bar with animation
+      Animated.parallel([
+        Animated.timing(searchBarOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchBarTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Hide search bar with animation
+      Animated.parallel([
+        Animated.timing(searchBarOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchBarTranslateY, {
+          toValue: 20,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isScrolling]);
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const shouldShow = offsetY > 50; // Show when scrolled more than 50px
+    
+    if (shouldShow !== isScrolling) {
+      setIsScrolling(shouldShow);
+    }
+  }, [isScrolling]);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    setIsScrolling(true);
+  }, []);
+
+  const handleScrollEndDrag = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    if (offsetY <= 50) {
+      setIsScrolling(false);
+    }
   }, []);
 
   const handleVoiceSearch = useCallback(async () => {
@@ -167,6 +224,10 @@ export const PokedexScreen = ({ navigation }: Props) => {
         ]}
         onEndReachedThreshold={0.3}
         onEndReached={hasMore ? loadMore : undefined}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           initialLoading ? (
             <View style={styles.loader}>
@@ -204,8 +265,8 @@ export const PokedexScreen = ({ navigation }: Props) => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* ✅ SEARCH BAR MOVED TO BOTTOM */}
-      <View
+      {/* ✅ SEARCH BAR MOVED TO BOTTOM - Only shows when scrolling */}
+      <Animated.View
         style={[
           styles.bottomSearchContainer,
           { 
@@ -213,8 +274,11 @@ export const PokedexScreen = ({ navigation }: Props) => {
             backgroundColor: colors.background,
             borderColor: colors.border,
             shadowColor: colors.shadow,
+            opacity: searchBarOpacity,
+            transform: [{ translateY: searchBarTranslateY }],
           },
         ]}
+        pointerEvents={isScrolling ? 'auto' : 'none'}
       >
         <SearchAndFilter
           searchText={searchText}
@@ -223,10 +287,8 @@ export const PokedexScreen = ({ navigation }: Props) => {
           onTypeSelect={setSelectedType}
           availableTypes={availableTypes}
           onClear={clearFilters}
-          onVoiceSearch={handleVoiceSearch}
-          isVoiceSearching={isVoiceSearching}
         />
-      </View>
+      </Animated.View>
     </View>
   );
 };

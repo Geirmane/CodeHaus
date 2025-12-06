@@ -217,7 +217,7 @@ function AppContent() {
             shadowRadius: 12,
             borderRadius: 20,
             marginHorizontal: 15,
-            marginBottom: 15,
+            marginBottom: 20,
             position: 'absolute',
           },
           tabBarLabelStyle: {

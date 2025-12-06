@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
@@ -17,8 +16,6 @@ type Props = {
   onTypeSelect: (type: string | null) => void;
   availableTypes: string[];
   onClear: () => void;
-  onVoiceSearch?: () => void;
-  isVoiceSearching?: boolean;
 };
 
 export const SearchAndFilter = ({
@@ -28,8 +25,6 @@ export const SearchAndFilter = ({
   onTypeSelect,
   availableTypes,
   onClear,
-  onVoiceSearch,
-  isVoiceSearching = false,
 }: Props) => {
   const { colors } = useTheme();
   
@@ -74,30 +69,6 @@ export const SearchAndFilter = ({
           autoCorrect={false}
           clearButtonMode="while-editing"
         />
-        {onVoiceSearch && (
-          <TouchableOpacity
-            onPress={onVoiceSearch}
-            style={[
-              styles.voiceButton,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                shadowColor: colors.shadow,
-              },
-              isVoiceSearching && {
-                backgroundColor: colors.primaryLight,
-                borderColor: colors.primary,
-              },
-            ]}
-            disabled={isVoiceSearching}
-          >
-            {isVoiceSearching ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text style={styles.voiceButtonText}>🎤</Text>
-            )}
-          </TouchableOpacity>
-        )}
         {(searchText || selectedType) && (
           <TouchableOpacity
             onPress={onClear}
@@ -156,73 +127,57 @@ const FilterChip = ({ label, selected, onPress }: FilterChipProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 6,
     marginBottom: 0,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    fontSize: 16,
-    borderWidth: 3,
-    fontWeight: '500',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  clearButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 2,
-  },
-  clearButtonText: {
-    fontWeight: '700',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
-    letterSpacing: 0.3,
-  },
-  voiceButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 48,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  voiceButtonText: {
-    fontSize: 20,
-  },
-  typeRow: {
-    gap: 10,
-    paddingRight: 18,
-  },
-  chip: {
-    borderRadius: 999,
     borderWidth: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    fontWeight: '500',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  clearButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  clearButtonText: {
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+  typeRow: {
+    gap: 6,
+    paddingRight: 12,
+  },
+  chip: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   chipText: {
     fontWeight: '600',
     textTransform: 'capitalize',
-    fontSize: 12,
-    letterSpacing: 0.2,
+    fontSize: 11,
+    letterSpacing: 0.1,
   },
 });
 
