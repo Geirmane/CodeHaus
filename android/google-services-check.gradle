@@ -1,0 +1,12 @@
+// Check if google-services.json exists before applying the plugin
+def googleServicesFile = file('google-services.json')
+if (googleServicesFile.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+    println("✓ Google Services plugin applied - Firebase enabled")
+} else {
+    println("⚠ google-services.json not found - Firebase features will be disabled")
+    println("  To enable Firebase:")
+    println("  1. Create a Firebase project at https://console.firebase.google.com/")
+    println("  2. Download google-services.json")
+    println("  3. Place it in android/app/google-services.json")
+}
