@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,12 @@ import {
   Platform,
   ScrollView,
   Image,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './AuthContext';
+import { useTheme } from './src/context/ThemeContext';
 
 type SignupScreenProps = {
   onNavigateToLogin: () => void;
@@ -22,6 +25,69 @@ type StarterPokemon = {
   id: number;
   name: string;
   sprite: string;
+};
+
+// Starter Card Component with Animation
+const StarterCard: React.FC<{
+  starter: StarterPokemon;
+  isSelected: boolean;
+  onPress: () => void;
+  disabled: boolean;
+  colors: any;
+  hasError: boolean;
+}> = ({ starter, isSelected, onPress, disabled, colors, hasError }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(scaleAnim, {
+      toValue: isSelected ? 1.1 : 1,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
+  }, [isSelected]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        style={[
+          styles.starterCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: isSelected ? colors.primary : colors.border,
+            shadowColor: colors.shadow,
+          },
+          isSelected && styles.selectedStarter,
+          hasError && !isSelected && {
+            borderColor: colors.error,
+            borderWidth: 3,
+          },
+        ]}
+        onPress={onPress}
+        disabled={disabled}
+        activeOpacity={0.7}
+      >
+        <View style={[
+          styles.starterImageContainer,
+          isSelected && { backgroundColor: colors.primaryLight }
+        ]}>
+          <Image
+            source={{ uri: starter.sprite }}
+            style={styles.starterImage}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={[styles.starterName, { color: colors.primary }]}>
+          {starter.name.charAt(0).toUpperCase() + starter.name.slice(1)}
+        </Text>
+        {isSelected && (
+          <View style={[styles.checkmark, { backgroundColor: colors.primary }]}>
+            <Text style={styles.checkmarkText}>✓</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
 };
 
 const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
@@ -35,8 +101,30 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [confirmPasswordError, setConfirmPasswordError] = useState<string>('');
   const [starterError, setStarterError] = useState<string>('');
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signUp } = useAuth();
   const insets = useSafeAreaInsets();
+  const { colors, theme } = useTheme();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Animate screen entrance
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   useEffect(() => {
     // Fetch starter Pokemon from PokeAPI (Bulbasaur, Charmander, Squirtle)
@@ -178,137 +266,280 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
+      {/* Gradient Background Effect */}
+      <View style={[styles.gradientBackground, { backgroundColor: colors.primary }]} />
+      <View style={[styles.gradientOverlay, { backgroundColor: colors.background }]} />
+      
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Begin Your Journey!</Text>
-          <Text style={styles.subtitle}>Create your Trainer Account</Text>
-        </View>
-
-        {/* Starter Selection */}
-        <View style={styles.starterSection}>
-          <Text style={styles.sectionTitle}>Choose Your Starter Pokémon</Text>
-          <View style={styles.starterContainer}>
-            {starters.map((starter) => (
-              <TouchableOpacity
-                key={starter.id}
-                style={[
-                  styles.starterCard,
-                  selectedStarter === starter.id && styles.selectedStarter,
-                  starterError && !selectedStarter && styles.starterCardError,
-                ]}
-                onPress={() => {
-                  setSelectedStarter(starter.id);
-                  setStarterError(''); // Clear error when a starter is selected
-                }}
-                disabled={isLoading}
-              >
-                <Image
-                  source={{ uri: starter.sprite }}
-                  style={styles.starterImage}
-                  resizeMode="contain"
-                />
-                <Text style={styles.starterName}>
-                  {starter.name.charAt(0).toUpperCase() + starter.name.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {starterError && (
-            <View style={styles.starterErrorContainer}>
-              <Text style={styles.starterErrorText}>⚠️ {starterError}</Text>
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, { color: colors.primary }]}>Begin Your Journey!</Text>
+              <View style={[styles.titleUnderline, { backgroundColor: colors.primary }]} />
             </View>
-          )}
-        </View>
-
-        {/* Signup Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, emailErrors.length > 0 && styles.inputError]}
-              placeholder="trainer@pokemon.com"
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-            {emailErrors.length > 0 && (
-              <View style={styles.errorContainer}>
-                {emailErrors.map((error, index) => (
-                  <Text key={index} style={styles.errorText}>• {error}</Text>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, passwordErrors.length > 0 && styles.inputError]}
-              placeholder="Strong password required"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLoading}
-            />
-            {passwordErrors.length > 0 && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorTitle}>Password must include:</Text>
-                {passwordErrors.map((error, index) => (
-                  <Text key={index} style={styles.errorText}>• {error}</Text>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={[styles.input, confirmPasswordError && styles.inputError]}
-              placeholder="Re-enter your password"
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              editable={!isLoading}
-            />
-            {confirmPasswordError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>• {confirmPasswordError}</Text>
-              </View>
-            )}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.signupButton, isLoading && styles.disabledButton]}
-            onPress={handleSignup}
-            disabled={isLoading}
-          >
-            <Text style={styles.signupButtonText}>
-              {isLoading ? 'Creating Account...' : 'Start Adventure'}
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Create your Trainer Account
             </Text>
-          </TouchableOpacity>
-
-          {/* Login Link */}
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already a Trainer? </Text>
-            <TouchableOpacity onPress={onNavigateToLogin} disabled={isLoading}>
-              <Text style={styles.loginLink}>Login</Text>
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Footer */}
-        <Text style={styles.footer}>Your adventure awaits! 🎮</Text>
+          {/* Starter Selection */}
+          <View style={styles.starterSection}>
+            <Text style={[styles.sectionTitle, { color: colors.primary }]}>
+              Choose Your Starter Pokémon
+            </Text>
+            <View style={styles.starterContainer}>
+              {starters.map((starter) => (
+                <StarterCard
+                  key={starter.id}
+                  starter={starter}
+                  isSelected={selectedStarter === starter.id}
+                  onPress={() => {
+                    setSelectedStarter(starter.id);
+                    setStarterError('');
+                  }}
+                  disabled={isLoading}
+                  colors={colors}
+                  hasError={!!starterError && !selectedStarter}
+                />
+              ))}
+            </View>
+            {starterError && (
+              <View style={[styles.starterErrorContainer, { backgroundColor: colors.primaryLight, borderLeftColor: colors.error }]}>
+                <Text style={[styles.starterErrorText, { color: colors.error }]}>
+                  ⚠️ {starterError}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Signup Form */}
+          <View style={[
+            styles.formContainer,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.shadow,
+            }
+          ]}>
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.primary }]}>Email</Text>
+              <View style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: theme === 'dark' ? colors.surface : colors.primaryLight,
+                  borderColor: focusedInput === 'email' ? colors.primary : colors.border,
+                },
+                focusedInput === 'email' && {
+                  borderWidth: 3,
+                  shadowColor: colors.primary,
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 5,
+                },
+                emailErrors.length > 0 && {
+                  borderColor: colors.error,
+                  borderWidth: 3,
+                }
+              ]}>
+                <TextInput
+                  style={[styles.input, { color: colors.text, backgroundColor: 'transparent' }]}
+                  placeholder="trainer@pokemon.com"
+                  placeholderTextColor={colors.textSecondary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  onFocus={() => setFocusedInput('email')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+              </View>
+              {emailErrors.length > 0 && (
+                <View style={styles.errorContainer}>
+                  {emailErrors.map((error, index) => (
+                    <Text key={index} style={[styles.errorText, { color: colors.error }]}>
+                      • {error}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.primary }]}>Password</Text>
+              <View style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: theme === 'dark' ? colors.surface : colors.primaryLight,
+                  borderColor: focusedInput === 'password' ? colors.primary : colors.border,
+                },
+                focusedInput === 'password' && {
+                  borderWidth: 3,
+                  shadowColor: colors.primary,
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 5,
+                },
+                passwordErrors.length > 0 && {
+                  borderColor: colors.error,
+                  borderWidth: 3,
+                }
+              ]}>
+                <TextInput
+                  style={[styles.input, { color: colors.text, backgroundColor: 'transparent', paddingRight: 40 }]}
+                  placeholder="Strong password required"
+                  placeholderTextColor={colors.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  onFocus={() => setFocusedInput('password')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  {showPassword ? (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIcon, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyePupil, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIconClosed, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyeLine, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {passwordErrors.length > 0 && (
+                <View style={styles.errorContainer}>
+                  <Text style={[styles.errorTitle, { color: colors.error }]}>
+                    Password must include:
+                  </Text>
+                  {passwordErrors.map((error, index) => (
+                    <Text key={index} style={[styles.errorText, { color: colors.error }]}>
+                      • {error}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.primary }]}>Confirm Password</Text>
+              <View style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: theme === 'dark' ? colors.surface : colors.primaryLight,
+                  borderColor: focusedInput === 'confirmPassword' ? colors.primary : colors.border,
+                },
+                focusedInput === 'confirmPassword' && {
+                  borderWidth: 3,
+                  shadowColor: colors.primary,
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 5,
+                },
+                confirmPasswordError && {
+                  borderColor: colors.error,
+                  borderWidth: 3,
+                }
+              ]}>
+                <TextInput
+                  style={[styles.input, { color: colors.text, backgroundColor: 'transparent', paddingRight: 40 }]}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  editable={!isLoading}
+                  onFocus={() => setFocusedInput('confirmPassword')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  activeOpacity={0.7}
+                >
+                  {showConfirmPassword ? (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIcon, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyePupil, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIconClosed, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyeLine, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {confirmPasswordError && (
+                <View style={styles.errorContainer}>
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    • {confirmPasswordError}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.signupButton,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.borderLight,
+                  shadowColor: colors.primary,
+                },
+                isLoading && styles.disabledButton,
+              ]}
+              onPress={handleSignup}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.signupButtonText}>
+                  Start Adventure →
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Login Link */}
+            <View style={styles.loginContainer}>
+              <Text style={[styles.loginText, { color: colors.textSecondary }]}>
+                Already a Trainer?{' '}
+              </Text>
+              <TouchableOpacity onPress={onNavigateToLogin} disabled={isLoading}>
+                <Text style={[styles.loginLink, { color: colors.primary }]}>Login</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <Text style={[styles.footer, { color: colors.textSecondary }]}>
+            Your adventure awaits! 🎮
+          </Text>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -317,200 +548,267 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F8',
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+    opacity: 0.1,
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.95,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 24,
+    zIndex: 1,
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 26,
+    marginTop: 10,
+    marginBottom: 32,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
   },
   title: {
-    fontSize: 38,
+    fontSize: 42,
     fontWeight: '900',
-    color: '#FF6B9D',
-    marginBottom: 10,
-    letterSpacing: 1,
-    textShadowColor: 'rgba(255, 107, 157, 0.4)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  titleUnderline: {
+    width: 80,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 4,
   },
   subtitle: {
-    fontSize: 17,
-    color: '#FF6B9D',
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   starterSection: {
-    marginBottom: 26,
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    color: '#FF6B9D',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     letterSpacing: 0.8,
   },
   starterContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 14,
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   starterCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 24,
+    padding: 16,
     alignItems: 'center',
     width: 110,
     borderWidth: 3,
-    borderColor: '#FFE5ED',
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  starterCardError: {
-    borderColor: '#FF6B9D',
-    borderWidth: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+    position: 'relative',
   },
   selectedStarter: {
-    borderColor: '#FF6B9D',
-    backgroundColor: '#FFF5F8',
     borderWidth: 4,
-    shadowOpacity: 0.5,
-    transform: [{ scale: 1.05 }],
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  starterImageContainer: {
+    borderRadius: 20,
+    padding: 8,
+    marginBottom: 8,
+  },
+  starterImage: {
+    width: 80,
+    height: 80,
+  },
+  starterName: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 4,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  checkmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmarkText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
   starterErrorContainer: {
-    marginTop: 18,
+    marginTop: 20,
     padding: 16,
-    backgroundColor: '#FFE5ED',
     borderRadius: 16,
     borderLeftWidth: 5,
-    borderLeftColor: '#FF6B9D',
   },
   starterErrorText: {
-    fontSize: 15,
-    color: '#FF6B9D',
+    fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: 0.3,
   },
-  starterImage: {
-    width: 75,
-    height: 75,
-  },
-  starterName: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FF6B9D',
-    marginTop: 8,
-    letterSpacing: 0.5,
-  },
   formContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 30,
-    padding: 28,
-    borderWidth: 3,
-    borderColor: '#FFE5ED',
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 15,
+    borderRadius: 32,
+    padding: 32,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 20,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#FF6B9D',
-    marginBottom: 10,
+    marginBottom: 12,
     letterSpacing: 0.5,
   },
-  input: {
-    backgroundColor: '#FFF5F8',
+  inputWrapper: {
+    borderRadius: 20,
     borderWidth: 2.5,
-    borderColor: '#FFE5ED',
-    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  input: {
     padding: 18,
     fontSize: 16,
-    color: '#333',
     fontWeight: '500',
+    borderRadius: 20,
   },
-  inputError: {
-    borderColor: '#FF6B9D',
-    borderWidth: 3,
+  eyeButton: {
+    position: 'absolute',
+    right: 8,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    zIndex: 1,
+  },
+  eyeIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIcon: {
+    width: 20,
+    height: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyePupil: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  eyeIconClosed: {
+    width: 20,
+    height: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeLine: {
+    width: 16,
+    height: 1.5,
+    borderRadius: 1,
   },
   errorContainer: {
-    marginTop: 8,
-    paddingLeft: 5,
+    marginTop: 10,
+    paddingLeft: 6,
   },
   errorTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FF6B9D',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   errorText: {
     fontSize: 13,
-    color: '#FF6B9D',
-    marginBottom: 2,
+    marginBottom: 4,
     fontWeight: '600',
   },
   signupButton: {
-    backgroundColor: '#FF6B9D',
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 20,
     alignItems: 'center',
-    marginTop: 15,
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    justifyContent: 'center',
+    marginTop: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
     borderWidth: 2,
-    borderColor: '#FFB3D1',
+    minHeight: 60,
   },
   disabledButton: {
     backgroundColor: '#D0D0D0',
     borderColor: '#E0E0E0',
     shadowOpacity: 0,
+    opacity: 0.6,
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 26,
+    marginTop: 28,
+    alignItems: 'center',
   },
   loginText: {
-    color: '#999',
     fontSize: 15,
     fontWeight: '500',
   },
   loginLink: {
-    color: '#FF6B9D',
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.3,
+    textDecorationLine: 'underline',
   },
   footer: {
     textAlign: 'center',
-    marginTop: 26,
-    fontSize: 16,
-    color: '#FF6B9D',
-    fontWeight: '700',
+    marginTop: 32,
+    fontSize: 15,
+    fontWeight: '600',
     letterSpacing: 0.5,
+    marginBottom: 20,
   },
 });
 

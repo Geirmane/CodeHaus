@@ -10,30 +10,34 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePokemonDetail } from '../hooks/usePokemonDetail';
 import { MainStackParamList } from '../navigation/types';
 import { capitalize, formatPokemonId, getSpriteUri } from '../utils/pokemon';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'PokemonDetail'>;
 
 export const PokemonDetailScreen = ({ route }: Props) => {
   const { pokemonId, name } = route.params;
   const { bundle, loading, error, refresh } = usePokemonDetail(pokemonId);
+  const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (loading && !bundle) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#ef5350" />
-        <Text style={styles.loaderText}>Loading {capitalize(name)}...</Text>
+      <View style={[styles.loader, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loaderText, { color: colors.text }]}>Loading {capitalize(name)}...</Text>
       </View>
     );
   }
 
   if (!bundle) {
     return (
-      <View style={styles.loader}>
-        <Text style={styles.errorText}>{error ?? 'Unable to load this Pokémon.'}</Text>
+      <View style={[styles.loader, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error ?? 'Unable to load this Pokémon.'}</Text>
       </View>
     );
   }
@@ -42,85 +46,193 @@ export const PokemonDetailScreen = ({ route }: Props) => {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}
       refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#ef5350" />
+        <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
       }
     >
       {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[
+          styles.errorBanner,
+          {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.border,
+            borderLeftColor: colors.error,
+          }
+        ]}>
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity onPress={refresh}>
-            <Text style={styles.errorHint}>Tap to retry</Text>
+            <Text style={[styles.errorHint, { color: colors.primary }]}>Tap to retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      <Text style={styles.title}>
-        {capitalize(bundle.detail.name)} <Text style={styles.id}>{formatPokemonId(bundle.detail.id)}</Text>
-      </Text>
-      <Text style={styles.subtitle}>{bundle.genera}</Text>
+      <View style={styles.headerSection}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {capitalize(bundle.detail.name)}
+        </Text>
+        <Text style={[styles.id, { color: colors.textSecondary }]}>
+          {formatPokemonId(bundle.detail.id)}
+        </Text>
+      </View>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{bundle.genera}</Text>
 
       {spriteUri ? (
         <View style={styles.spriteWrapper}>
-          <View style={styles.spriteBg} />
-          <View style={styles.spriteCard}>
-            <Text style={styles.sectionLabel}>Sprite</Text>
+          <View style={[
+            styles.spriteBg,
+            {
+              backgroundColor: colors.primaryLight,
+              opacity: theme === 'dark' ? 0.2 : 0.3,
+            }
+          ]} />
+          <View style={[
+            styles.spriteCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.shadow,
+            }
+          ]}>
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>Sprite</Text>
             <Image source={{ uri: spriteUri }} style={styles.sprite} resizeMode="contain" />
           </View>
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Flavor text</Text>
-        <Text style={styles.sectionBody}>{bundle.flavorText}</Text>
+      <View style={[
+        styles.section,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        }
+      ]}>
+        <Text style={[styles.sectionLabel, { color: colors.primary }]}>Flavor text</Text>
+        <Text style={[styles.sectionBody, { color: colors.text }]}>{bundle.flavorText}</Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Types</Text>
+      <View style={[
+        styles.section,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        }
+      ]}>
+        <Text style={[styles.sectionLabel, { color: colors.primary }]}>Types</Text>
         <View style={styles.tagRow}>
           {bundle.detail.types.map(({ type }) => (
-            <View key={type.name} style={styles.tag}>
-              <Text style={styles.tagText}>{capitalize(type.name)}</Text>
+            <View
+              key={type.name}
+              style={[
+                styles.tag,
+                {
+                  backgroundColor: colors.primaryLight,
+                  borderColor: colors.primary,
+                }
+              ]}
+            >
+              <Text style={[styles.tagText, { color: colors.primary }]}>
+                {capitalize(type.name)}
+              </Text>
             </View>
           ))}
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Abilities</Text>
-        <Text style={styles.sectionBody}>
+      <View style={[
+        styles.section,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        }
+      ]}>
+        <Text style={[styles.sectionLabel, { color: colors.primary }]}>Abilities</Text>
+        <Text style={[styles.sectionBody, { color: colors.text }]}>
           {bundle.detail.abilities.map(({ ability }) => capitalize(ability.name)).join(', ')}
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Base stats</Text>
+      <View style={[
+        styles.section,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        }
+      ]}>
+        <Text style={[styles.sectionLabel, { color: colors.primary }]}>Base stats</Text>
         {bundle.detail.stats.map(({ stat, base_stat }) => (
-          <View key={stat.name} style={styles.statRow}>
-            <Text style={styles.statName}>{capitalize(stat.name)}</Text>
-            <Text style={styles.statValue}>{base_stat}</Text>
+          <View
+            key={stat.name}
+            style={[
+              styles.statRow,
+              {
+                borderBottomColor: colors.border,
+              }
+            ]}
+          >
+            <Text style={[styles.statName, { color: colors.textSecondary }]}>
+              {capitalize(stat.name)}
+            </Text>
+            <View style={styles.statBarContainer}>
+              <View style={[styles.statBarBg, { backgroundColor: colors.primaryLight }]}>
+                <View
+                  style={[
+                    styles.statBarFill,
+                    {
+                      width: `${(base_stat / 255) * 100}%`,
+                      backgroundColor: colors.primary,
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{base_stat}</Text>
+            </View>
           </View>
         ))}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Evolution chain</Text>
+      <View style={[
+        styles.section,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        }
+      ]}>
+        <Text style={[styles.sectionLabel, { color: colors.primary }]}>Evolution chain</Text>
         {bundle.evolutions.length ? (
           <View style={styles.evolutionRow}>
             {bundle.evolutions.map((evo, index) => (
               <React.Fragment key={`${evo.name}-${evo.id}`}>
-                <View style={styles.evolutionCard}>
-                  <Text style={styles.evolutionName}>{capitalize(evo.name)}</Text>
-                  <Text style={styles.evolutionId}>{formatPokemonId(evo.id)}</Text>
+                <View style={[
+                  styles.evolutionCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  }
+                ]}>
+                  <Text style={[styles.evolutionName, { color: colors.text }]}>
+                    {capitalize(evo.name)}
+                  </Text>
+                  <Text style={[styles.evolutionId, { color: colors.textSecondary }]}>
+                    {formatPokemonId(evo.id)}
+                  </Text>
                 </View>
-                {index < bundle.evolutions.length - 1 && <Text style={styles.evolutionArrow}>→</Text>}
+                {index < bundle.evolutions.length - 1 && (
+                  <Text style={[styles.evolutionArrow, { color: colors.primary }]}>→</Text>
+                )}
               </React.Fragment>
             ))}
           </View>
         ) : (
-          <Text style={styles.sectionBody}>No evolution data available.</Text>
+          <Text style={[styles.sectionBody, { color: colors.textSecondary }]}>
+            No evolution data available.
+          </Text>
         )}
       </View>
     </ScrollView>
@@ -130,10 +242,9 @@ export const PokemonDetailScreen = ({ route }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f7fb',
   },
   content: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 48,
   },
   loader: {
@@ -141,141 +252,173 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f7f7fb',
     gap: 12,
   },
   loaderText: {
-    color: '#4a4a4f',
+    fontSize: 16,
+    fontWeight: '600',
   },
   errorBanner: {
-    backgroundColor: '#ffe0e0',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderWidth: 2,
   },
   errorText: {
-    color: '#b71c1c',
     textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 15,
   },
   errorHint: {
-    color: '#7b7b85',
-    marginTop: 4,
+    marginTop: 8,
     textAlign: 'center',
     textDecorationLine: 'underline',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 12,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1b1b1f',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   id: {
-    fontSize: 16,
-    color: '#7b7b85',
+    fontSize: 18,
+    fontWeight: '700',
   },
   subtitle: {
-    color: '#4a4a4f',
-    marginTop: 4,
-    marginBottom: 16,
+    fontSize: 16,
+    marginBottom: 24,
+    fontWeight: '500',
   },
   spriteWrapper: {
-    marginBottom: 16,
+    marginBottom: 24,
+    position: 'relative',
   },
   spriteBg: {
     position: 'absolute',
-    top: 16,
+    top: 20,
     left: 0,
     right: 0,
-    height: 180,
-    backgroundColor: '#fde0dc',
-    borderRadius: 24,
+    height: 200,
+    borderRadius: 32,
   },
   spriteCard: {
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
   },
   sprite: {
     width: '100%',
-    height: 200,
+    height: 220,
   },
   section: {
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    marginBottom: 20,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   sectionLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1b1b1f',
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 12,
+    letterSpacing: 0.5,
   },
   sectionBody: {
-    color: '#4a4a4f',
-    lineHeight: 20,
+    lineHeight: 22,
+    fontSize: 15,
+    fontWeight: '500',
   },
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   tag: {
-    backgroundColor: '#ffe0e0',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 2,
   },
   tagText: {
-    fontWeight: '600',
-    color: '#b71c1c',
+    fontWeight: '700',
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ececf2',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 12,
   },
   statName: {
-    color: '#4a4a4f',
+    fontSize: 15,
+    fontWeight: '600',
+    minWidth: 100,
+  },
+  statBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statBarBg: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  statBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   statValue: {
-    fontWeight: '700',
-    color: '#1b1b1f',
+    fontWeight: '800',
+    fontSize: 15,
+    minWidth: 35,
+    textAlign: 'right',
   },
   evolutionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   evolutionCard: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#f0f4ff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 2,
+    minWidth: 100,
+    alignItems: 'center',
   },
   evolutionName: {
-    fontWeight: '600',
-    color: '#1b1b1f',
+    fontWeight: '700',
+    fontSize: 15,
   },
   evolutionId: {
-    color: '#7b7b85',
+    fontSize: 13,
     marginTop: 4,
+    fontWeight: '600',
   },
   evolutionArrow: {
-    fontSize: 20,
-    color: '#7b7b85',
+    fontSize: 24,
+    fontWeight: '700',
   },
 });
 

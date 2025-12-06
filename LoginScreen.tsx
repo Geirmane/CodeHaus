@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
-import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './AuthContext';
+import { useTheme } from './src/context/ThemeContext';
 
 type LoginScreenProps = {
   onNavigateToSignup: () => void;
@@ -23,8 +24,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
   const insets = useSafeAreaInsets();
+  const { colors, theme } = useTheme();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -71,89 +92,157 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView 
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Pikachu Animation */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back, Trainer!</Text>
-          <LottieView
-            source={require('./assets/Pikachu.json')}
-            autoPlay
-            loop
-            style={styles.animation}
-          />
-        </View>
-
-        {/* Login Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="ash@pokemon.com"
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              editable={!isLoading}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.disabledButton]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            <Text style={styles.loginButtonText}>
-              {isLoading ? 'Logging in...' : 'Login'}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>POKEDEX</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              by CodeHaus
             </Text>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
           </View>
 
-          {/* Google Sign-In Button */}
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-          </TouchableOpacity>
+          {/* Login Form */}
+          <View style={[
+            styles.formContainer,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.shadow,
+            }
+          ]}>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: colors.text,
+                    borderBottomColor: focusedInput === 'email' ? colors.primary : colors.border,
+                    borderBottomWidth: focusedInput === 'email' ? 2 : 1,
+                  }
+                ]}
+                placeholder="Email address or username"
+                placeholderTextColor={colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isLoading}
+                onFocus={() => setFocusedInput('email')}
+                onBlur={() => setFocusedInput(null)}
+              />
+            </View>
 
-          {/* Sign Up Link */}
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={onNavigateToSignup} disabled={isLoading}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.passwordInput,
+                    {
+                      color: colors.text,
+                      borderBottomColor: focusedInput === 'password' ? colors.primary : colors.border,
+                      borderBottomWidth: focusedInput === 'password' ? 2 : 1,
+                    }
+                  ]}
+                  placeholder="Password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  onFocus={() => setFocusedInput('password')}
+                  onBlur={() => setFocusedInput(null)}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  {showPassword ? (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIcon, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyePupil, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.eyeIconContainer}>
+                      <View style={[styles.eyeIconClosed, { borderColor: colors.textSecondary }]}>
+                        <View style={[styles.eyeLine, { backgroundColor: colors.textSecondary }]} />
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                {
+                  backgroundColor: colors.primary,
+                  shadowColor: colors.primary,
+                },
+                isLoading && styles.disabledButton,
+              ]}
+              onPress={handleLogin}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Log In</Text>
+              )}
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Footer */}
-        <Text style={styles.footer}>Gotta Catch 'Em All! ⚡</Text>
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+
+            {/* Google Sign-In Button */}
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                }
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={isLoading}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.googleButtonText, { color: colors.text }]}>
+                Continue with Google
+              </Text>
+            </TouchableOpacity>
+
+            {/* Sign Up Link */}
+            <View style={styles.signupContainer}>
+              <Text style={[styles.signupText, { color: colors.textSecondary }]}>
+                Don't have an account?{' '}
+              </Text>
+              <TouchableOpacity onPress={onNavigateToSignup} disabled={isLoading}>
+                <Text style={[styles.signupLink, { color: colors.primary }]}>Sign up for CodeHaus</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -162,148 +251,163 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF5F8',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 32,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 35,
+    marginBottom: 48,
   },
   title: {
-    fontSize: 38,
+    fontSize: 48,
     fontWeight: '900',
-    color: '#FF6B9D',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(255, 107, 157, 0.4)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
+    letterSpacing: -1,
   },
-  animation: {
-    width: 220,
-    height: 220,
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    textAlign: 'center',
   },
   formContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 30,
-    padding: 28,
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 15,
-    borderWidth: 3,
-    borderColor: '#FFE5ED',
+    borderRadius: 32,
+    padding: 32,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 20,
   },
   inputContainer: {
-    marginBottom: 22,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FF6B9D',
-    marginBottom: 10,
-    letterSpacing: 0.5,
+    marginBottom: 24,
   },
   input: {
-    backgroundColor: '#FFF5F8',
-    borderWidth: 2.5,
-    borderColor: '#FFE5ED',
-    borderRadius: 18,
-    padding: 18,
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontWeight: '400',
+    paddingVertical: 16,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  passwordInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingRight: 40,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 0,
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIcon: {
+    width: 20,
+    height: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyePupil: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  eyeIconClosed: {
+    width: 20,
+    height: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeLine: {
+    width: 16,
+    height: 1.5,
+    borderRadius: 1,
   },
   loginButton: {
-    backgroundColor: '#FF6B9D',
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: 500,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 15,
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: '#FFB3D1',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    minHeight: 52,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   disabledButton: {
-    backgroundColor: '#D0D0D0',
-    borderColor: '#E0E0E0',
-    shadowOpacity: 0,
+    opacity: 0.6,
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 26,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
-    height: 2,
-    backgroundColor: '#FFE5ED',
+    height: 1,
   },
   dividerText: {
-    marginHorizontal: 14,
-    color: '#FF6B9D',
-    fontSize: 14,
-    fontWeight: '700',
+    marginHorizontal: 16,
+    fontSize: 12,
+    fontWeight: '600',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 3,
-    borderColor: '#FF6B9D',
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 500,
+    paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    justifyContent: 'center',
+    marginBottom: 24,
+    minHeight: 52,
   },
   googleButtonText: {
-    color: '#FF6B9D',
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 26,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
   },
   signupText: {
-    color: '#999',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   signupLink: {
-    color: '#FF6B9D',
     fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: 35,
-    fontSize: 16,
-    color: '#FF6B9D',
     fontWeight: '700',
-    letterSpacing: 0.5,
+    textDecorationLine: 'underline',
   },
 });
 
