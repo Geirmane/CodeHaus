@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import '@react-native-firebase/app';
 
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
