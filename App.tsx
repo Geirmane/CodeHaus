@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 import '@react-native-firebase/app';
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, Text, View } from 'react-native';
+import { ActivityIndicator, StatusBar, Text, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -20,14 +20,19 @@ import LoadingScreen from './LoadingScreen';
 import { AuthProvider, useAuth } from './AuthContext';
 import LoginScreen from './LoginScreen';
 import SignupScreen from './SignupScreen';
+import { DrawerMenu } from './src/components/DrawerMenu';
 
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const screenOptions: NativeStackNavigationOptions = {
-  headerStyle: { backgroundColor: '#ef5350' },
+  headerStyle: { 
+    backgroundColor: '#FF6B9D',
+  },
   headerTintColor: '#fff',
-  headerTitleStyle: { fontWeight: '700' },
+  headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: '#FFF5F8' },
 };
 
 const PokedexTab = () => (
@@ -43,18 +48,42 @@ const PokedexTab = () => (
   </MainStack.Navigator>
 );
 
-const HuntTab = () => (
-  <MainStack.Navigator screenOptions={screenOptions}>
-    <MainStack.Screen name="Hunt" component={HuntScreen} options={{ title: 'Hunt Pokémon' }} />
-    <MainStack.Screen
-      name="PokemonDetail"
-      component={PokemonDetailScreen}
-      options={({ route }) => ({
-        title: capitalize(route.params.name),
-      })}
-    />
-  </MainStack.Navigator>
-);
+const HuntTabWithMenu = () => {
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  
+  return (
+    <>
+      <MainStack.Navigator screenOptions={screenOptions}>
+        <MainStack.Screen 
+          name="Hunt" 
+          component={HuntScreen} 
+          options={{ 
+            title: 'Hunt Pokémon',
+            headerRight: () => (
+              <TouchableOpacity
+                style={headerStyles.menuButton}
+                onPress={() => setDrawerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={headerStyles.menuButtonText}>☰</Text>
+              </TouchableOpacity>
+            ),
+          }} 
+        />
+        <MainStack.Screen
+          name="PokemonDetail"
+          component={PokemonDetailScreen}
+          options={({ route }) => ({
+            title: capitalize(route.params.name),
+          })}
+        />
+      </MainStack.Navigator>
+      <DrawerMenu visible={drawerVisible} onClose={() => setDrawerVisible(false)} topOffset={0} />
+    </>
+  );
+};
+
+const HuntTab = () => <HuntTabWithMenu />;
 
 const ARCameraTab = () => (
   <MainStack.Navigator screenOptions={screenOptions}>
@@ -82,7 +111,7 @@ function App() {
     <AuthProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <StatusBar barStyle="light-content" backgroundColor="#ef5350" />
+          <StatusBar barStyle="light-content" backgroundColor="#FF6B9D" />
           <AppContent />
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -120,8 +149,8 @@ function AppContent() {
 
   if (loading || hasSeenAuth === null) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#ef5350" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF6B9D" />
       </View>
     );
   }
@@ -140,15 +169,29 @@ function AppContent() {
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: '#ef5350',
-          tabBarInactiveTintColor: '#7b7b85',
+          tabBarActiveTintColor: '#FF6B9D',
+          tabBarInactiveTintColor: '#A8A8A8',
           tabBarStyle: {
-            backgroundColor: '#fff',
-            borderTopColor: '#ececf2',
-            borderTopWidth: 1,
-            paddingBottom: 5,
-            paddingTop: 5,
-            height: 60,
+            backgroundColor: '#FFFFFF',
+            borderTopColor: '#F0F0F0',
+            borderTopWidth: 2,
+            paddingBottom: 10,
+            paddingTop: 10,
+            height: 70,
+            elevation: 25,
+            shadowColor: '#FF6B9D',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 12,
+            borderRadius: 20,
+            marginHorizontal: 15,
+            marginBottom: 15,
+            position: 'absolute',
+          },
+          tabBarLabelStyle: {
+            fontSize: 13,
+            fontWeight: '700',
+            letterSpacing: 0.3,
           },
           headerShown: false,
         }}
@@ -183,7 +226,36 @@ function AppContent() {
 }
 
 const TabIcon = ({ emoji }: { emoji: string }) => (
-  <Text style={{ fontSize: 24 }}>{emoji}</Text>
+  <Text style={styles.tabIcon}>{emoji}</Text>
 );
+
+const headerStyles = StyleSheet.create({
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuButtonText: {
+    fontSize: 22,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+});
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F8',
+  },
+  tabIcon: {
+    fontSize: 26,
+  },
+});
 
 export default App;

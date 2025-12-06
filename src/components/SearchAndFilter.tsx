@@ -32,37 +32,6 @@ export const SearchAndFilter = ({
 }: Props) => {
   return (
     <View style={styles.container}>
-      <View style={styles.searchRow}>
-        <TextInput
-          value={searchText}
-          onChangeText={onSearchChange}
-          placeholder="Search by name, type, ability, or #ID"
-          placeholderTextColor="#8c8c94"
-          style={styles.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-        />
-        {onVoiceSearch && (
-          <TouchableOpacity
-            onPress={onVoiceSearch}
-            style={[styles.voiceButton, isVoiceSearching && styles.voiceButtonActive]}
-            disabled={isVoiceSearching}
-          >
-            {isVoiceSearching ? (
-              <ActivityIndicator size="small" color="#ef5350" />
-            ) : (
-              <Text style={styles.voiceButtonText}>🎤</Text>
-            )}
-          </TouchableOpacity>
-        )}
-        {(searchText || selectedType) && (
-          <TouchableOpacity onPress={onClear} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -82,6 +51,37 @@ export const SearchAndFilter = ({
           />
         ))}
       </ScrollView>
+
+      <View style={styles.searchRow}>
+        <TextInput
+          value={searchText}
+          onChangeText={onSearchChange}
+          placeholder="Search by name, type, ability, or #ID"
+          placeholderTextColor="#FFB3D1"
+          style={styles.searchInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+        {onVoiceSearch && (
+          <TouchableOpacity
+            onPress={onVoiceSearch}
+            style={[styles.voiceButton, isVoiceSearching && styles.voiceButtonActive]}
+            disabled={isVoiceSearching}
+          >
+            {isVoiceSearching ? (
+              <ActivityIndicator size="small" color="#FF6B9D" />
+            ) : (
+              <Text style={styles.voiceButtonText}>🎤</Text>
+            )}
+          </TouchableOpacity>
+        )}
+        {(searchText || selectedType) && (
+          <TouchableOpacity onPress={onClear} style={styles.clearButton}>
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -104,71 +104,99 @@ const FilterChip = ({ label, selected, onPress }: FilterChipProps) => (
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 0,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#ececf2',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 3,
+    borderColor: '#FFE5ED',
+    color: '#333',
+    fontWeight: '500',
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
   clearButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 999,
-    backgroundColor: '#ececf2',
+    backgroundColor: '#FFE5ED',
+    borderWidth: 2,
+    borderColor: '#FFB3D1',
   },
   clearButtonText: {
-    color: '#4a4a4f',
-    fontWeight: '600',
+    color: '#FF6B9D',
+    fontWeight: '700',
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   voiceButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 999,
-    backgroundColor: '#ececf2',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FFE5ED',
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 40,
+    minWidth: 48,
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
   voiceButtonActive: {
-    backgroundColor: '#ffe0e0',
+    backgroundColor: '#FFE5ED',
+    borderColor: '#FF6B9D',
   },
   voiceButtonText: {
-    fontSize: 18,
+    fontSize: 20,
   },
   typeRow: {
-    gap: 8,
-    paddingRight: 16,
+    gap: 10,
+    paddingRight: 18,
   },
   chip: {
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#d0d0d8',
-    paddingHorizontal: 14,
+    borderWidth: 2,
+    borderColor: '#FFE5ED',
+    paddingHorizontal: 12,
     paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   chipSelected: {
-    backgroundColor: '#ef5350',
-    borderColor: '#ef5350',
+    backgroundColor: '#FF6B9D',
+    borderColor: '#FF6B9D',
+    shadowOpacity: 0.3,
   },
   chipText: {
-    color: '#4a4a4f',
+    color: '#FF6B9D',
     fontWeight: '600',
     textTransform: 'capitalize',
+    fontSize: 12,
+    letterSpacing: 0.2,
   },
   chipTextSelected: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
 });
 

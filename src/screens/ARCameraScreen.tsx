@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MainStackParamList } from '../navigation/types';
 import { PokemonDetail } from '../types/pokemon';
 import { capitalize, getSpriteUri } from '../utils/pokemon';
 import { fetchPokemonDetailBundle } from '../services/pokeApi';
+import { DrawerMenu } from '../components/DrawerMenu';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ARCamera'>;
 
@@ -28,6 +30,8 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   const [overlayPokemon, setOverlayPokemon] = useState<PokemonDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!hasPermission) {
@@ -126,6 +130,20 @@ export const ARCameraScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={[styles.menuButton, { top: insets.top + 20 }]}
+        onPress={() => setDrawerVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.menuButtonText}>☰</Text>
+      </TouchableOpacity>
+
+      <DrawerMenu 
+        visible={drawerVisible} 
+        onClose={() => setDrawerVisible(false)}
+        topOffset={20}
+      />
+
       <Camera
         ref={camera}
         style={styles.camera}
@@ -177,6 +195,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  menuButton: {
+    position: 'absolute',
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 3,
+    borderColor: '#FFE5ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  menuButtonText: {
+    fontSize: 24,
+    color: '#FF6B9D',
+    fontWeight: '700',
   },
   camera: {
     flex: 1,

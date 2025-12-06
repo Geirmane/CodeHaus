@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import LottieView from 'lottie-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from './AuthContext';
 
 type LoginScreenProps = {
@@ -23,6 +24,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signInWithGoogle } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -71,7 +73,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header with Pikachu Animation */}
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back, Trainer!</Text>
@@ -157,118 +162,148 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFF5F8',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 35,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ef5350',
-    marginBottom: 10,
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#FF6B9D',
+    marginBottom: 12,
     textAlign: 'center',
+    letterSpacing: 1,
+    textShadowColor: 'rgba(255, 107, 157, 0.4)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 10,
   },
   animation: {
-    width: 200,
-    height: 200,
+    width: 220,
+    height: 220,
   },
   formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 30,
+    padding: 28,
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 15,
+    borderWidth: 3,
+    borderColor: '#FFE5ED',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FF6B9D',
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#f9f9f9',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 15,
+    backgroundColor: '#FFF5F8',
+    borderWidth: 2.5,
+    borderColor: '#FFE5ED',
+    borderRadius: 18,
+    padding: 18,
     fontSize: 16,
     color: '#333',
+    fontWeight: '500',
   },
   loginButton: {
-    backgroundColor: '#ef5350',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FF6B9D',
+    borderRadius: 18,
+    padding: 20,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 15,
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#FFB3D1',
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#D0D0D0',
+    borderColor: '#E0E0E0',
+    shadowOpacity: 0,
   },
   loginButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 26,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#ddd',
+    height: 2,
+    backgroundColor: '#FFE5ED',
   },
   dividerText: {
-    marginHorizontal: 10,
-    color: '#999',
+    marginHorizontal: 14,
+    color: '#FF6B9D',
     fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   googleButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#ef5350',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FF6B9D',
+    borderRadius: 18,
+    padding: 18,
     alignItems: 'center',
+    shadowColor: '#FF6B9D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   googleButtonText: {
-    color: '#ef5350',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FF6B9D',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: 26,
   },
   signupText: {
-    color: '#666',
-    fontSize: 14,
+    color: '#999',
+    fontSize: 15,
+    fontWeight: '500',
   },
   signupLink: {
-    color: '#ef5350',
-    fontSize: 14,
-    fontWeight: 'bold',
+    color: '#FF6B9D',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   footer: {
     textAlign: 'center',
-    marginTop: 30,
+    marginTop: 35,
     fontSize: 16,
-    color: '#999',
+    color: '#FF6B9D',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 
