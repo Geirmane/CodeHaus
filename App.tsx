@@ -281,7 +281,7 @@ function AppContent() {
           component={PokedexTab}
           options={{
             title: 'Pokédex',
-            tabBarIcon: () => <TabIcon emoji="📖" />,
+            tabBarIcon: () => <TabIcon emoji="⚡" />,
           }}
         />
         <Tab.Screen
@@ -289,7 +289,7 @@ function AppContent() {
           component={HuntTab}
           options={{
             title: 'Hunt',
-            tabBarIcon: () => <TabIcon emoji="🗺️" />,
+            tabBarIcon: () => <TabIcon emoji="🎯" />,
           }}
         />
         <Tab.Screen
@@ -297,7 +297,7 @@ function AppContent() {
           component={ARCameraTab}
           options={{
             title: 'AR',
-            tabBarIcon: () => <TabIcon emoji="📷" />,
+            tabBarIcon: () => <TabIcon emoji="✨" />,
           }}
         />
       </Tab.Navigator>

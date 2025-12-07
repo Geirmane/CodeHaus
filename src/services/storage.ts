@@ -53,8 +53,8 @@ export const uploadImage = async (
       throw new Error('Invalid file path: path is empty after normalization');
     }
 
-    // Ensure path starts with / for absolute path
-    if (!normalizedPath.startsWith('/')) {
+    // Ensure path starts with / for absolute path (unless it's already a Windows path like C:\)
+    if (!normalizedPath.startsWith('/') && !normalizedPath.match(/^[A-Za-z]:/)) {
       normalizedPath = '/' + normalizedPath;
     }
 
@@ -63,7 +63,8 @@ export const uploadImage = async (
     if (uploadPath.includes('file://')) {
       uploadPath = uploadPath.replace(/^file:\/\//, '');
     }
-    if (!uploadPath.startsWith('/')) {
+    // Don't add leading / for Windows paths
+    if (!uploadPath.startsWith('/') && !uploadPath.match(/^[A-Za-z]:/)) {
       uploadPath = '/' + uploadPath;
     }
 
@@ -74,17 +75,55 @@ export const uploadImage = async (
     console.log('  Final upload path:', uploadPath);
     console.log('  Storage path:', storagePath);
     
-    // For Android cache files, use base64 upload method
-    // This bypasses the file path access issue entirely
-    if (Platform.OS === 'android' && uploadPath.includes('/cache/')) {
+    // Verify file exists before attempting upload
+    if (Platform.OS === 'android') {
+      const { checkFileExists } = await import('../utils/fileHelper');
+      const fileExists = await checkFileExists(uploadPath);
+      console.log('  File exists check:', fileExists);
+      if (!fileExists) {
+        // Try the original path too
+        const originalExists = await checkFileExists(filePath);
+        console.log('  Original path exists check:', originalExists);
+        if (originalExists) {
+          uploadPath = filePath.replace(/^file:\/\//, '');
+          console.log('  Using original path instead:', uploadPath);
+        } else {
+          throw new Error(`Photo file not found at path: ${uploadPath}. Please try capturing again.`);
+        }
+      }
+    }
+    
+    // Try standard putFile first, fall back to base64 for Android cache files if it fails
+    const isAndroidCacheFile = Platform.OS === 'android' && (
+      uploadPath.includes('/cache/') || 
+      uploadPath.includes('/data/user/')
+    );
+    
+    // For Android cache files, try base64 upload method directly
+    // For other files, try putFile first
+    if (isAndroidCacheFile) {
       try {
-        console.log('  Android cache file detected, using base64 upload method');
-        const base64Data = await readFileAsBase64(uploadPath);
-        const base64String = `data:image/jpeg;base64,${base64Data}`;
+        console.log('  Android file detected, using base64 upload method');
+        console.log('  Reading file from path:', uploadPath);
+        console.log('  Original file path:', filePath);
         
-        // Upload with base64 string
-        // Note: putString returns a promise directly in react-native-firebase
-        await reference.putString(base64String, 'data_url');
+        // Read file as base64 (this will check if file exists internally)
+        const base64Data = await readFileAsBase64(uploadPath);
+        
+        if (!base64Data || base64Data.length === 0) {
+          throw new Error('File read as base64 but data is empty. The file may be corrupted or inaccessible.');
+        }
+        
+        console.log('  Base64 data length:', base64Data.length);
+        
+        // Upload with base64 string using 'base64' format (not 'data_url')
+        // react-native-firebase putString accepts 'raw' or 'base64' format
+        const uploadTask = reference.putString(base64Data, 'base64', {
+          contentType: 'image/jpeg',
+        });
+        
+        // Wait for upload to complete
+        await uploadTask;
         console.log('Upload successful using base64 method');
       } catch (base64Error: any) {
         console.error('Base64 upload error:', base64Error);
@@ -93,26 +132,58 @@ export const uploadImage = async (
           message: base64Error?.message,
           nativeError: base64Error?.nativeErrorCode,
           nativeMessage: base64Error?.nativeErrorMessage,
+          stack: base64Error?.stack,
         });
         
         if (base64Error?.code === 'storage/unauthorized') {
           throw new Error('Permission denied. Please check your Firebase Storage security rules.');
         } else if (base64Error?.code === 'storage/quota-exceeded') {
           throw new Error('Storage quota exceeded. Please check your Firebase Storage plan.');
+        } else if (base64Error?.code === 'storage/object-not-found') {
+          throw new Error('Upload failed: File reference not found. Please try again.');
+        } else if (base64Error?.code === 'storage/unknown' || base64Error?.message?.includes('bytes cannot be null')) {
+          throw new Error(
+            'Failed to read file data. The photo file may be corrupted or inaccessible. ' +
+            'Please try capturing the photo again.'
+          );
+        }
+        
+        // Re-throw the original error if it's already a user-friendly message
+        if (base64Error?.message && !base64Error?.message.includes('react-native-fs')) {
+          throw base64Error;
         }
         
         throw new Error(
-          `Failed to upload file from cache directory: ${base64Error?.message || 'Unknown error'}. ` +
+          `Failed to upload file: ${base64Error?.message || 'Unknown error'}. ` +
           `Please ensure react-native-fs is installed and try again.`
         );
       }
     } else {
-      // For non-cache files, use the standard putFile method
+      // For non-cache files, try the standard putFile method first
       try {
+        console.log('  Attempting upload using putFile method');
         await reference.putFile(uploadPath);
         console.log('Upload successful using putFile method');
       } catch (uploadError: any) {
-        console.error('Upload error details:', {
+        // If putFile fails on Android and it's not a cache file, try base64 as fallback
+        if (Platform.OS === 'android' && !isAndroidCacheFile) {
+          console.log('  putFile failed, trying base64 fallback method');
+          try {
+            const base64Data = await readFileAsBase64(uploadPath);
+            if (!base64Data || base64Data.length === 0) {
+              throw new Error('File read as base64 but data is empty.');
+            }
+            const uploadTask = reference.putString(base64Data, 'base64', {
+              contentType: 'image/jpeg',
+            });
+            await uploadTask;
+            console.log('Upload successful using base64 fallback method');
+          } catch (fallbackError: any) {
+            // If base64 also fails, throw the original putFile error
+            throw uploadError;
+          }
+        } else {
+          console.error('Upload error details:', {
           code: uploadError?.code,
           message: uploadError?.message,
           nativeError: uploadError?.nativeErrorCode,
@@ -140,9 +211,10 @@ export const uploadImage = async (
           throw new Error('Permission denied accessing the photo file. Please check app permissions in device settings.');
         }
         
-        // Re-throw with more context
-        const errorMessage = uploadError?.message || uploadError?.nativeErrorMessage || 'Unknown upload error';
-        throw new Error(`Upload failed: ${errorMessage}. Path: ${uploadPath}`);
+          // Re-throw with more context
+          const errorMessage = uploadError?.message || uploadError?.nativeErrorMessage || 'Unknown upload error';
+          throw new Error(`Upload failed: ${errorMessage}. Path: ${uploadPath}`);
+        }
       }
     }
     

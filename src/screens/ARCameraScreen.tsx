@@ -15,6 +15,7 @@ import { Camera, useCameraDevice, useCameraPermission } from 'react-native-visio
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import LottieView from 'lottie-react-native';
 
 import { MainStackParamList } from '../navigation/types';
 import { PokemonDetail } from '../types/pokemon';
@@ -23,6 +24,8 @@ import { fetchPokemonDetailBundle } from '../services/pokeApi';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { saveCapturedPhoto, subscribeToCapturedPhotos, CapturedPhoto } from '../services/photos';
 import { useTheme } from '../context/ThemeContext';
+import { showShareOptions } from '../services/share';
+import RNFS from 'react-native-fs';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ARCamera'>;
 
@@ -41,6 +44,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   const spawnPositionSeedRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [capturedPhotoPath, setCapturedPhotoPath] = useState<string | null>(null); // Store raw path for saving
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
@@ -75,7 +79,8 @@ export const ARCameraScreen = ({ navigation }: Props) => {
 
   const loadRandomPokemon = useCallback(async () => {
     // Don't load if camera is not active or in preview/gallery mode
-    if (!isActive || capturedPhoto || showGallery) {
+    // Also don't load if there's already a Pokémon on screen (user must interact with it first)
+    if (!isActive || capturedPhoto || showGallery || currentPokemon) {
       return;
     }
 
@@ -97,16 +102,16 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         y,
       };
 
-      // Replace current Pokémon instead of adding to array
-      setCurrentPokemon(newPokemon);
-      // Update seed for next spawn position variation
-      spawnPositionSeedRef.current = (seed % 1000);
+      // Only set if there's no current Pokémon
+      if (!currentPokemon) {
+        setCurrentPokemon(newPokemon);
+      }
     } catch (error) {
       console.warn('Error loading Pokémon:', error);
     } finally {
       setLoading(false);
     }
-  }, [isActive, capturedPhoto, showGallery]);
+  }, [isActive, capturedPhoto, showGallery, currentPokemon]);
 
   // Update spawn position seed periodically to vary positions
   useEffect(() => {
@@ -119,15 +124,17 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     return () => clearInterval(positionUpdateInterval);
   }, [isActive]);
 
-  // Auto-spawn Pokémon at random intervals
+  // Auto-spawn Pokémon at random intervals (only if no Pokémon is currently on screen)
   useEffect(() => {
-    if (!isActive || capturedPhoto || showGallery || !hasPermission || !device) {
+    if (!isActive || capturedPhoto || showGallery || !hasPermission || !device || currentPokemon) {
       return;
     }
 
     // Spawn first Pokémon after a short delay
     const initialDelay = setTimeout(() => {
-      loadRandomPokemon();
+      if (!currentPokemon) {
+        loadRandomPokemon();
+      }
     }, 2000);
 
     // Set up interval for random spawning
@@ -137,8 +144,10 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     let intervalId: NodeJS.Timeout;
     const scheduleNextSpawn = () => {
       intervalId = setTimeout(() => {
-        loadRandomPokemon();
-        scheduleNextSpawn(); // Schedule the next spawn
+        if (!currentPokemon) {
+          loadRandomPokemon();
+          scheduleNextSpawn(); // Schedule the next spawn
+        }
       }, getRandomInterval());
     };
 
@@ -154,18 +163,9 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         clearTimeout(intervalId);
       }
     };
-  }, [isActive, capturedPhoto, showGallery, hasPermission, device, loadRandomPokemon]);
+  }, [isActive, capturedPhoto, showGallery, hasPermission, device, currentPokemon, loadRandomPokemon]);
 
-  // Clear Pokémon when leaving camera view
-  useEffect(() => {
-    if (showGallery) {
-      // Keep Pokémon when viewing gallery
-      return;
-    }
-    if (!isActive) {
-      setCurrentPokemon(null);
-    }
-  }, [isActive, showGallery]);
+  // Don't auto-clear Pokémon - only clear when user chooses to run away or after capture
 
   const takePhoto = async () => {
     if (!camera.current) {
@@ -178,7 +178,8 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       });
 
       // vision-camera returns absolute path, use it directly
-      // Add file:// prefix for Image component to display it
+      // Store raw path for saving, and file:// prefixed path for display
+      setCapturedPhotoPath(photo.path);
       setCapturedPhoto(`file://${photo.path}`);
     } catch (error) {
       console.warn('Error taking photo:', error);
@@ -187,18 +188,51 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   };
 
   const handleSavePhoto = async () => {
-    if (!capturedPhoto) return;
+    if (!capturedPhoto || !capturedPhotoPath) return;
 
     try {
       setSavingPhoto(true);
       // Get the current Pokémon in the photo
       const pokemonInPhoto = currentPokemon;
       
-      console.log('Saving photo with path:', capturedPhoto);
+      console.log('Saving photo with path:', capturedPhotoPath);
       console.log('Pokémon in photo:', pokemonInPhoto?.pokemon.name);
       
+      // Add a delay to ensure the file is fully written
+      // Also verify file exists before attempting upload
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Verify file exists
+      if (Platform.OS === 'android') {
+        try {
+          const exists = await RNFS.exists(capturedPhotoPath);
+          console.log('File exists check result:', exists);
+          console.log('File path being checked:', capturedPhotoPath);
+          if (!exists) {
+            // Try alternative path formats
+            const altPath1 = capturedPhotoPath.replace(/^\/+/, '/');
+            const altPath2 = `file://${capturedPhotoPath}`;
+            const existsAlt1 = await RNFS.exists(altPath1);
+            const existsAlt2 = await RNFS.exists(altPath2.replace(/^file:\/\//, ''));
+            console.log('Alternative path checks:', { altPath1: existsAlt1, altPath2: existsAlt2 });
+            
+            if (!existsAlt1 && !existsAlt2) {
+              throw new Error(`Photo file not found at path: ${capturedPhotoPath}. The file may not have been saved correctly. Please try capturing again.`);
+            } else if (existsAlt1) {
+              // Update path if alternative works
+              console.log('Using alternative path:', altPath1);
+            }
+          } else {
+            console.log('File verified to exist before upload');
+          }
+        } catch (checkError: any) {
+          console.error('Error checking file existence:', checkError);
+          // Continue anyway - let the upload function handle the error
+        }
+      }
+      
       await saveCapturedPhoto(
-        capturedPhoto,
+        capturedPhotoPath, // Use raw path without file:// prefix
         pokemonInPhoto?.pokemon.id,
         pokemonInPhoto?.pokemon.name,
       );
@@ -206,8 +240,8 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         'Photo Saved!',
         pokemonInPhoto ? `You captured ${capitalize(pokemonInPhoto.pokemon.name)}!` : 'Photo saved to gallery!',
         [
-          { text: 'View Gallery', onPress: () => { setCapturedPhoto(null); setShowGallery(true); } },
-          { text: 'OK', onPress: () => setCapturedPhoto(null) },
+          { text: 'View Gallery', onPress: () => { setCapturedPhoto(null); setCapturedPhotoPath(null); setCurrentPokemon(null); setShowGallery(true); } },
+          { text: 'OK', onPress: () => { setCapturedPhoto(null); setCapturedPhotoPath(null); setCurrentPokemon(null); } },
         ],
       );
     } catch (error: any) {
@@ -279,21 +313,39 @@ export const ARCameraScreen = ({ navigation }: Props) => {
             </View>
           ) : (
             capturedPhotos.map((photo) => (
-              <TouchableOpacity
+              <View
                 key={photo.id}
                 style={[styles.galleryItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => {
-                  setShowGallery(false);
-                  setCapturedPhoto(photo.photoURL);
-                }}
               >
-                <Image source={{ uri: photo.photoURL }} style={styles.galleryImage} resizeMode="cover" />
-                {photo.pokemonName && (
-                  <View style={[styles.galleryBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.galleryBadgeText}>{capitalize(photo.pokemonName)}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.galleryItemContent}
+                  onPress={() => {
+                    setShowGallery(false);
+                    setCapturedPhoto(photo.photoURL);
+                  }}
+                >
+                  <Image source={{ uri: photo.photoURL }} style={styles.galleryImage} resizeMode="cover" />
+                  {photo.pokemonName && (
+                    <View style={[styles.galleryBadge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.galleryBadgeText}>{capitalize(photo.pokemonName)}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.shareButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    showShareOptions({
+                      url: photo.photoURL,
+                      pokemonName: photo.pokemonName || undefined,
+                      message: photo.pokemonName 
+                        ? `I just captured ${capitalize(photo.pokemonName)} with AR! 🎮✨` 
+                        : 'Check out my AR Pokémon capture! 🎮✨',
+                    });
+                  }}
+                >
+                  <Text style={styles.shareButtonText}>📤 Share</Text>
+                </TouchableOpacity>
+              </View>
             ))
           )}
         </ScrollView>
@@ -314,13 +366,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
           return (
             <View
               key={currentPokemon.id}
-              style={[
-                styles.pokemonOverlayContainer,
-                {
-                  left: `${currentPokemon.x}%`,
-                  top: `${currentPokemon.y}%`,
-                },
-              ]}
+              style={styles.pokemonOverlayContainer}
             >
               <View style={styles.pokemonOverlay}>
                 <Image source={{ uri: spriteUri }} style={styles.overlayImage} resizeMode="contain" />
@@ -333,7 +379,11 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         <View style={[styles.previewControls, { bottom: 100 + insets.bottom }]}>
           <TouchableOpacity
             style={[styles.previewButton, { backgroundColor: colors.surface }]}
-            onPress={() => setCapturedPhoto(null)}
+            onPress={() => {
+              setCapturedPhoto(null);
+              setCapturedPhotoPath(null);
+              // Keep Pokémon on screen after retake
+            }}
           >
             <Text style={[styles.previewButtonText, { color: colors.text }]}>Retake</Text>
           </TouchableOpacity>
@@ -387,13 +437,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         return (
           <View
             key={currentPokemon.id}
-            style={[
-              styles.pokemonOverlayContainer,
-              {
-                left: `${currentPokemon.x}%`,
-                top: `${currentPokemon.y}%`,
-              },
-            ]}
+            style={styles.pokemonOverlayContainer}
           >
             <View style={styles.pokemonOverlay}>
               <Image source={{ uri: spriteUri }} style={styles.overlayImage} resizeMode="contain" />
@@ -411,16 +455,21 @@ export const ARCameraScreen = ({ navigation }: Props) => {
           <Text style={styles.controlButtonText}>📷 Gallery</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
-          <View style={styles.captureButtonInner} />
+        <TouchableOpacity style={styles.captureButton} onPress={takePhoto} activeOpacity={0.8}>
+          <LottieView
+            source={require('../../assets/Pokeball.json')}
+            autoPlay
+            loop
+            style={styles.pokeballAnimation}
+          />
         </TouchableOpacity>
 
         {currentPokemon && (
           <TouchableOpacity
-            style={styles.clearButton}
+            style={styles.runButton}
             onPress={() => setCurrentPokemon(null)}
           >
-            <Text style={styles.clearButtonText}>Clear</Text>
+            <Text style={styles.runButtonText}>Run</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -462,7 +511,11 @@ const styles = StyleSheet.create({
   },
   pokemonOverlayContainer: {
     position: 'absolute',
-    transform: [{ translateX: -125 }, { translateY: -150 }], // Center the overlay on the position (half of 250 width/height)
+    left: 0,
+    right: 0,
+    top: '40%',
+    alignItems: 'center',
+    transform: [{ translateY: -150 }], // Center vertically (half of 300 height)
   },
   pokemonOverlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -509,30 +562,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#fff',
+    width: 80,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#ef5350',
+    borderRadius: 40,
+    backgroundColor: 'transparent',
   },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#ef5350',
+  pokeballAnimation: {
+    width: 80,
+    height: 80,
   },
-  clearButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  runButton: {
+    backgroundColor: 'rgba(220, 38, 38, 0.8)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  clearButtonText: {
+  runButtonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 14,
   },
   permissionContainer: {
     flex: 1,
@@ -635,9 +687,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    paddingBottom: 80,
   },
   galleryItem: {
     width: '47%',
+    marginBottom: 50,
+  },
+  galleryItemContent: {
+    width: '100%',
     aspectRatio: 1,
     borderRadius: 12,
     overflow: 'hidden',
@@ -678,6 +735,19 @@ const styles = StyleSheet.create({
   emptyGallerySubtext: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  shareButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  shareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
 
