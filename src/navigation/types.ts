@@ -6,6 +6,8 @@ export type MainStackParamList = {
   };
   Hunt: undefined;
   ARCamera: undefined;
+  Settings: undefined;
+  Profile: undefined;
 };
 
 export type TabParamList = {

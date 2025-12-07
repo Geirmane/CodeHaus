@@ -69,3 +69,69 @@ export const signInWithGoogle = async () => {
 
 export const signOutUser = () => auth().signOut();
 
+/**
+ * Update user profile in Firestore
+ */
+export const updateUserProfile = async (updates: Partial<UserProfile>) => {
+  const user = auth().currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to update profile');
+  }
+
+  await usersCollection.doc(user.uid).update({
+    ...updates,
+    updatedAt: firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+/**
+ * Update user's display name in Firebase Auth and Firestore
+ */
+export const updateDisplayName = async (displayName: string) => {
+  const user = auth().currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to update display name');
+  }
+
+  await user.updateProfile({ displayName });
+  await updateUserProfile({ displayName });
+};
+
+/**
+ * Update user's email in Firebase Auth and Firestore
+ */
+export const updateEmail = async (newEmail: string) => {
+  const user = auth().currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to update email');
+  }
+
+  await user.updateEmail(newEmail.trim());
+  await updateUserProfile({ email: newEmail.trim() });
+};
+
+/**
+ * Update user's password
+ */
+export const updatePassword = async (newPassword: string) => {
+  const user = auth().currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to update password');
+  }
+
+  await user.updatePassword(newPassword);
+};
+
+/**
+ * Update user's profile picture URL
+ */
+export const updateProfilePicture = async (photoURL: string) => {
+  const user = auth().currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to update profile picture');
+  }
+
+  await user.updateProfile({ photoURL });
+  await updateUserProfile({ photoURL });
+};
+

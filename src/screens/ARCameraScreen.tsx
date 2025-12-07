@@ -9,6 +9,7 @@ import {
   Image,
   PermissionsAndroid,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,6 +20,8 @@ import { PokemonDetail } from '../types/pokemon';
 import { capitalize, getSpriteUri } from '../utils/pokemon';
 import { fetchPokemonDetailBundle } from '../services/pokeApi';
 import { DrawerMenu } from '../components/DrawerMenu';
+import { saveCapturedPhoto, subscribeToCapturedPhotos, CapturedPhoto } from '../services/photos';
+import { useTheme } from '../context/ThemeContext';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'ARCamera'>;
 
@@ -26,11 +29,15 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const camera = useRef<Camera>(null);
+  const { colors } = useTheme();
   const [isActive, setIsActive] = useState(true);
   const [overlayPokemon, setOverlayPokemon] = useState<PokemonDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
+  const [savingPhoto, setSavingPhoto] = useState(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -43,6 +50,13 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     return () => {
       setIsActive(false);
     };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCapturedPhotos((photos) => {
+      setCapturedPhotos(photos);
+    });
+    return unsubscribe;
   }, []);
 
   const loadRandomPokemon = async () => {
@@ -70,17 +84,35 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       });
 
       setCapturedPhoto(`file://${photo.path}`);
-      Alert.alert(
-        'Photo Captured!',
-        overlayPokemon ? `You captured ${capitalize(overlayPokemon.name)}!` : 'Photo saved!',
-        [
-          { text: 'Retake', onPress: () => setCapturedPhoto(null) },
-          { text: 'OK', onPress: () => setCapturedPhoto(null) },
-        ],
-      );
     } catch (error) {
       console.warn('Error taking photo:', error);
       Alert.alert('Error', 'Failed to capture photo');
+    }
+  };
+
+  const handleSavePhoto = async () => {
+    if (!capturedPhoto) return;
+
+    try {
+      setSavingPhoto(true);
+      await saveCapturedPhoto(
+        capturedPhoto,
+        overlayPokemon?.id,
+        overlayPokemon?.name,
+      );
+      Alert.alert(
+        'Photo Saved!',
+        overlayPokemon ? `You captured ${capitalize(overlayPokemon.name)}!` : 'Photo saved to gallery!',
+        [
+          { text: 'View Gallery', onPress: () => { setCapturedPhoto(null); setShowGallery(true); } },
+          { text: 'OK', onPress: () => setCapturedPhoto(null) },
+        ],
+      );
+    } catch (error: any) {
+      console.error('Error saving photo:', error);
+      Alert.alert('Error', error.message || 'Failed to save photo');
+    } finally {
+      setSavingPhoto(false);
     }
   };
 
@@ -104,22 +136,75 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     );
   }
 
+  if (showGallery) {
+    return (
+      <View style={[styles.galleryContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.galleryHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => setShowGallery(false)}>
+            <Text style={[styles.galleryBackButton, { color: colors.primary }]}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.galleryTitle, { color: colors.text }]}>My Captures</Text>
+          <View style={{ width: 60 }} />
+        </View>
+        <ScrollView
+          style={styles.galleryScroll}
+          contentContainerStyle={styles.galleryGrid}
+          showsVerticalScrollIndicator={false}
+        >
+          {capturedPhotos.length === 0 ? (
+            <View style={styles.emptyGallery}>
+              <Text style={[styles.emptyGalleryText, { color: colors.textSecondary }]}>
+                No photos captured yet
+              </Text>
+              <Text style={[styles.emptyGallerySubtext, { color: colors.textSecondary }]}>
+                Take some photos with Pokémon to see them here!
+              </Text>
+            </View>
+          ) : (
+            capturedPhotos.map((photo) => (
+              <TouchableOpacity
+                key={photo.id}
+                style={[styles.galleryItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => {
+                  setShowGallery(false);
+                  setCapturedPhoto(photo.photoURL);
+                }}
+              >
+                <Image source={{ uri: photo.photoURL }} style={styles.galleryImage} resizeMode="cover" />
+                {photo.pokemonName && (
+                  <View style={[styles.galleryBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.galleryBadgeText}>{capitalize(photo.pokemonName)}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
+
   if (capturedPhoto) {
     return (
       <View style={styles.previewContainer}>
         <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="contain" />
         <View style={[styles.previewControls, { bottom: 100 + insets.bottom }]}>
-          <TouchableOpacity style={styles.previewButton} onPress={() => setCapturedPhoto(null)}>
-            <Text style={styles.previewButtonText}>Retake</Text>
+          <TouchableOpacity
+            style={[styles.previewButton, { backgroundColor: colors.surface }]}
+            onPress={() => setCapturedPhoto(null)}
+          >
+            <Text style={[styles.previewButtonText, { color: colors.text }]}>Retake</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.previewButton}
-            onPress={() => {
-              setCapturedPhoto(null);
-              navigation.goBack();
-            }}
+            style={[styles.previewButton, { backgroundColor: colors.primary }]}
+            onPress={handleSavePhoto}
+            disabled={savingPhoto}
           >
-            <Text style={styles.previewButtonText}>Done</Text>
+            {savingPhoto ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={[styles.previewButtonText, { color: '#FFFFFF' }]}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -162,6 +247,13 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       )}
 
       <View style={[styles.controls, { bottom: 100 + insets.bottom }]}>
+        <TouchableOpacity
+          style={[styles.controlButton, { backgroundColor: colors.primary }]}
+          onPress={() => setShowGallery(true)}
+        >
+          <Text style={styles.controlButtonText}>📷 Gallery</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.controlButton}
           onPress={loadRandomPokemon}
@@ -351,6 +443,77 @@ const styles = StyleSheet.create({
   previewButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  galleryContainer: {
+    flex: 1,
+  },
+  galleryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 2,
+  },
+  galleryBackButton: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  galleryTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  galleryScroll: {
+    flex: 1,
+  },
+  galleryGrid: {
+    padding: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  galleryItem: {
+    width: '47%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 2,
+    position: 'relative',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  galleryBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  galleryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyGallery: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyGalleryText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyGallerySubtext: {
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
 

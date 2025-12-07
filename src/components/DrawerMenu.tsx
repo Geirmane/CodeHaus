@@ -10,20 +10,30 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { MainStackParamList } from '../navigation/types';
 
 type DrawerMenuProps = {
   visible: boolean;
   onClose: () => void;
   topOffset?: number;
+  navigation?: any;
 };
 
-export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps) => {
+type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
+
+export const DrawerMenu = ({ visible, onClose, topOffset = 0, navigation: navigationProp }: DrawerMenuProps) => {
   const { signOut, user } = useAuth();
-  const { theme, colors, toggleTheme } = useTheme();
+  const { colors } = useTheme();
   const [slideAnim] = useState(new Animated.Value(300));
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
+  
+  // Use prop navigation if provided, otherwise use hook navigation
+  const nav = navigationProp || navigation;
 
   React.useEffect(() => {
     if (visible) {
@@ -44,18 +54,12 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
 
   const handleProfile = () => {
     onClose();
-    // TODO: Navigate to Profile screen
-    Alert.alert('Profile', 'Profile screen coming soon!');
+    nav.navigate('Profile');
   };
 
   const handleSettings = () => {
     onClose();
-    // TODO: Navigate to Settings screen
-    Alert.alert('Settings', 'Settings screen coming soon!');
-  };
-
-  const handleThemeToggle = () => {
-    toggleTheme();
+    nav.navigate('Settings');
   };
 
   const handleLogout = () => {
@@ -135,19 +139,6 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0 }: DrawerMenuProps)
                 >
                   <Text style={styles.menuItemIcon}>⚙️</Text>
                   <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleThemeToggle}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.menuItemIcon}>
-                    {theme === 'dark' ? '☀️' : '🌙'}
-                  </Text>
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </Text>
                 </TouchableOpacity>
 
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />

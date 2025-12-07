@@ -15,6 +15,8 @@ import { PokedexScreen } from './src/screens/PokedexScreen';
 import { PokemonDetailScreen } from './src/screens/PokemonDetailScreen';
 import { HuntScreen } from './src/screens/HuntScreen';
 import { ARCameraScreen } from './src/screens/ARCameraScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { capitalize } from './src/utils/pokemon';
 import LoadingScreen from './LoadingScreen';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -47,6 +49,20 @@ const PokedexTab = () => {
         options={({ route }) => ({
           title: capitalize(route.params.name),
         })}
+      />
+      <MainStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+        }}
+      />
+      <MainStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+        }}
       />
     </MainStack.Navigator>
   );
@@ -82,8 +98,26 @@ const HuntTabWithMenu = () => {
             title: capitalize(route.params.name),
           })}
         />
+        <MainStack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            title: 'Settings',
+          }}
+        />
+        <MainStack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            title: 'Profile',
+          }}
+        />
       </MainStack.Navigator>
-      <DrawerMenu visible={drawerVisible} onClose={() => setDrawerVisible(false)} topOffset={0} />
+      <DrawerMenu 
+        visible={drawerVisible} 
+        onClose={() => setDrawerVisible(false)} 
+        topOffset={0}
+      />
     </>
   );
 };
@@ -102,6 +136,20 @@ const ARCameraTab = () => {
           headerShown: false,
           contentStyle: { backgroundColor: '#000000' }, // Override theme background for camera screen
         }} 
+      />
+      <MainStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+        }}
+      />
+      <MainStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+        }}
       />
     </MainStack.Navigator>
   );
@@ -137,12 +185,12 @@ function App() {
 }
 
 function AppContentWithTheme() {
-  const { theme, colors } = useTheme();
+  const { colors } = useTheme();
   
   return (
     <>
       <StatusBar 
-        barStyle={theme === 'dark' ? 'light-content' : 'light-content'} 
+        barStyle="light-content" 
         backgroundColor={colors.primary} 
       />
       <AppContent />
