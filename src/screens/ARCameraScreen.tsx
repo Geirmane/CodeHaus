@@ -85,41 +85,10 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       const randomId = Math.floor(Math.random() * 151) + 1;
       const bundle = await fetchPokemonDetailBundle(randomId);
       
-      // Generate random position with more variation
-      // Use spawnPositionSeed to add variation based on time/movement
-      const seed = spawnPositionSeedRef.current + Date.now();
-      const random1 = (Math.sin(seed) * 10000) % 1;
-      const random2 = (Math.cos(seed * 1.5) * 10000) % 1;
-      
-      const screenWidth = 100; // Percentage-based
-      const screenHeight = 100;
-      const margin = 15; // Margin from edges
-      
-      // More varied positioning - use different quadrants
-      const quadrant = Math.floor(Math.random() * 4);
-      let x, y;
-      
-      switch (quadrant) {
-        case 0: // Top-left
-          x = margin + Math.abs(random1) * (40 - margin);
-          y = margin + Math.abs(random2) * (40 - margin);
-          break;
-        case 1: // Top-right
-          x = 60 + Math.abs(random1) * (100 - 60 - margin);
-          y = margin + Math.abs(random2) * (40 - margin);
-          break;
-        case 2: // Bottom-left
-          x = margin + Math.abs(random1) * (40 - margin);
-          y = 50 + Math.abs(random2) * (100 - 50 - margin - 20);
-          break;
-        case 3: // Bottom-right
-          x = 60 + Math.abs(random1) * (100 - 60 - margin);
-          y = 50 + Math.abs(random2) * (100 - 50 - margin - 20);
-          break;
-        default:
-          x = Math.abs(random1) * (screenWidth - 2 * margin) + margin;
-          y = Math.abs(random2) * (screenHeight - 2 * margin - 20) + margin;
-      }
+      // Spawn Pokémon in the center of the screen
+      // Center position (50% from left, 40% from top to account for controls at bottom)
+      const x = 50; // Center horizontally
+      const y = 40; // Center vertically (slightly above center to avoid controls)
       
       const newPokemon = {
         pokemon: bundle.detail,
@@ -493,26 +462,31 @@ const styles = StyleSheet.create({
   },
   pokemonOverlayContainer: {
     position: 'absolute',
-    transform: [{ translateX: -60 }, { translateY: -100 }], // Center the overlay on the position
+    transform: [{ translateX: -125 }, { translateY: -150 }], // Center the overlay on the position (half of 250 width/height)
   },
   pokemonOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 12,
-    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 20,
+    borderRadius: 20,
     alignItems: 'center',
-    minWidth: 120,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    minWidth: 250,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 10,
   },
   overlayImage: {
-    width: 120,
-    height: 120,
+    width: 250,
+    height: 250,
   },
   overlayText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 24,
     fontWeight: '700',
-    marginTop: 6,
+    marginTop: 12,
     textAlign: 'center',
   },
   controls: {

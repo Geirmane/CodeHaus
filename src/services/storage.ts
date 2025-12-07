@@ -1,6 +1,7 @@
 import storage from '@react-native-firebase/storage';
 import auth from '@react-native-firebase/auth';
 import { Platform } from 'react-native';
+import { readFileAsBase64 } from '../utils/fileHelper';
 
 /**
  * Upload an image file to Firebase Storage
@@ -57,45 +58,117 @@ export const uploadImage = async (
       normalizedPath = '/' + normalizedPath;
     }
 
+    // Prepare upload path - ensure it's absolute and doesn't have file://
+    let uploadPath = normalizedPath;
+    if (uploadPath.includes('file://')) {
+      uploadPath = uploadPath.replace(/^file:\/\//, '');
+    }
+    if (!uploadPath.startsWith('/')) {
+      uploadPath = '/' + uploadPath;
+    }
+
     console.log('Uploading image:');
     console.log('  Platform:', Platform.OS);
     console.log('  Original path:', filePath);
     console.log('  Normalized path:', normalizedPath);
+    console.log('  Final upload path:', uploadPath);
     console.log('  Storage path:', storagePath);
     
-    try {
-      // For Android, putFile expects the file path directly
-      // For iOS, it also expects the file path
-      // The path should be absolute and not include file://
-      await reference.putFile(normalizedPath);
-      console.log('Upload successful');
-    } catch (uploadError: any) {
-      console.error('Upload error details:', {
-        code: uploadError?.code,
-        message: uploadError?.message,
-        nativeError: uploadError?.nativeErrorCode,
-        path: normalizedPath,
-        originalPath: filePath,
-      });
-      
-      // Handle specific error codes
-      if (uploadError?.code === 'storage/object-not-found') {
-        // This is unusual for upload - might be a permissions or path issue
-        throw new Error(`Upload failed: File path may be incorrect or permissions denied. Path: ${normalizedPath}`);
-      } else if (uploadError?.code === 'storage/unauthorized') {
-        throw new Error('Permission denied. Please check your Firebase Storage security rules.');
-      } else if (uploadError?.code === 'storage/canceled') {
-        throw new Error('Upload was canceled');
-      } else if (uploadError?.message?.includes('ENOENT') || uploadError?.message?.includes('No such file')) {
-        throw new Error(`File not found at path: ${normalizedPath}. Please try capturing the photo again.`);
+    // For Android cache files, use base64 upload method
+    // This bypasses the file path access issue entirely
+    if (Platform.OS === 'android' && uploadPath.includes('/cache/')) {
+      try {
+        console.log('  Android cache file detected, using base64 upload method');
+        const base64Data = await readFileAsBase64(uploadPath);
+        const base64String = `data:image/jpeg;base64,${base64Data}`;
+        
+        // Upload with base64 string
+        // Note: putString returns a promise directly in react-native-firebase
+        await reference.putString(base64String, 'data_url');
+        console.log('Upload successful using base64 method');
+      } catch (base64Error: any) {
+        console.error('Base64 upload error:', base64Error);
+        console.error('Base64 error details:', {
+          code: base64Error?.code,
+          message: base64Error?.message,
+          nativeError: base64Error?.nativeErrorCode,
+          nativeMessage: base64Error?.nativeErrorMessage,
+        });
+        
+        if (base64Error?.code === 'storage/unauthorized') {
+          throw new Error('Permission denied. Please check your Firebase Storage security rules.');
+        } else if (base64Error?.code === 'storage/quota-exceeded') {
+          throw new Error('Storage quota exceeded. Please check your Firebase Storage plan.');
+        }
+        
+        throw new Error(
+          `Failed to upload file from cache directory: ${base64Error?.message || 'Unknown error'}. ` +
+          `Please ensure react-native-fs is installed and try again.`
+        );
       }
-      
-      // Re-throw with original error for other cases
-      throw uploadError;
+    } else {
+      // For non-cache files, use the standard putFile method
+      try {
+        await reference.putFile(uploadPath);
+        console.log('Upload successful using putFile method');
+      } catch (uploadError: any) {
+        console.error('Upload error details:', {
+          code: uploadError?.code,
+          message: uploadError?.message,
+          nativeError: uploadError?.nativeErrorCode,
+          nativeMessage: uploadError?.nativeErrorMessage,
+          path: uploadPath,
+          originalPath: filePath,
+        });
+        
+        // Handle specific error codes
+        if (uploadError?.code === 'storage/object-not-found') {
+          throw new Error(`File not accessible at path: ${uploadPath}. The photo file may have been moved or deleted. Please try capturing again.`);
+        } else if (uploadError?.code === 'storage/unauthorized') {
+          throw new Error('Permission denied. Please check your Firebase Storage security rules.');
+        } else if (uploadError?.code === 'storage/canceled') {
+          throw new Error('Upload was canceled');
+        } else if (uploadError?.nativeErrorCode === 'file-not-found' || 
+                   uploadError?.message?.includes('ENOENT') || 
+                   uploadError?.message?.includes('No such file') ||
+                   uploadError?.nativeErrorMessage?.includes('No such file') ||
+                   uploadError?.nativeErrorMessage?.includes('ENOENT')) {
+          throw new Error(`File not found at path: ${uploadPath}. Please try capturing the photo again.`);
+        } else if (uploadError?.nativeErrorCode === 'permission-denied' ||
+                   uploadError?.message?.toLowerCase().includes('permission') ||
+                   uploadError?.nativeErrorMessage?.toLowerCase().includes('permission')) {
+          throw new Error('Permission denied accessing the photo file. Please check app permissions in device settings.');
+        }
+        
+        // Re-throw with more context
+        const errorMessage = uploadError?.message || uploadError?.nativeErrorMessage || 'Unknown upload error';
+        throw new Error(`Upload failed: ${errorMessage}. Path: ${uploadPath}`);
+      }
     }
-    const downloadURL = await reference.getDownloadURL();
-
-    return downloadURL;
+    
+    // Wait a moment to ensure upload is fully processed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Get download URL
+    try {
+      const downloadURL = await reference.getDownloadURL();
+      console.log('Download URL obtained successfully');
+      return downloadURL;
+    } catch (urlError: any) {
+      console.error('Error getting download URL:', urlError);
+      // Check if file exists first
+      try {
+        await reference.getMetadata();
+        // File exists, retry getting URL
+        const downloadURL = await reference.getDownloadURL();
+        return downloadURL;
+      } catch (metadataError: any) {
+        if (metadataError?.code === 'storage/object-not-found') {
+          throw new Error('Upload completed but file not found at reference. Please try again.');
+        }
+        throw new Error(`Failed to get download URL: ${urlError?.message || 'Unknown error'}`);
+      }
+    }
   } catch (error: any) {
     console.error('Error uploading image:', error);
     if (error?.code === 'storage/unauthorized') {

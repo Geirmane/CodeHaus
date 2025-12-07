@@ -31,9 +31,29 @@ export const PokemonCard = ({ pokemon, onPress }: Props) => {
         <Text style={[styles.cardTitle, { color: colors.text }]}>
           {capitalize(pokemon.name)}
         </Text>
-        <Text style={[styles.cardId, { color: colors.textSecondary }]}>
-          {formatPokemonId(pokemon.id)}
-        </Text>
+        <View style={styles.headerRight}>
+          <Text style={[styles.cardId, { color: colors.textSecondary }]}>
+            {formatPokemonId(pokemon.id)}
+          </Text>
+          <View style={[styles.tagRow, { marginTop: 8 }]}>
+            {pokemon.types.map(({ type }) => (
+              <View
+                key={type.name}
+                style={[
+                  styles.tag,
+                  {
+                    backgroundColor: colors.primaryLight,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.tagText, { color: colors.primary }]}>
+                  {capitalize(type.name)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
 
       {spriteUri ? (
@@ -53,25 +73,6 @@ export const PokemonCard = ({ pokemon, onPress }: Props) => {
           </Text>
         </View>
       )}
-
-      <View style={styles.tagRow}>
-        {pokemon.types.map(({ type }) => (
-          <View
-            key={type.name}
-            style={[
-              styles.tag,
-              {
-                backgroundColor: colors.primaryLight,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.tagText, { color: colors.primary }]}>
-              {capitalize(type.name)}
-            </Text>
-          </View>
-        ))}
-      </View>
     </TouchableOpacity>
   );
 };
@@ -90,13 +91,17 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
   cardTitle: {
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 0.8,
+    flex: 1,
+  },
+  headerRight: {
+    alignItems: 'flex-end',
   },
   cardId: {
     fontSize: 15,
@@ -123,7 +128,8 @@ const styles = StyleSheet.create({
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 6,
+    justifyContent: 'flex-end',
   },
   tag: {
     paddingHorizontal: 16,
