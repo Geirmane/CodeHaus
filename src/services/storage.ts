@@ -1,5 +1,6 @@
 import storage from '@react-native-firebase/storage';
 import auth from '@react-native-firebase/auth';
+import { Platform } from 'react-native';
 
 /**
  * Upload an image file to Firebase Storage
@@ -18,19 +19,94 @@ export const uploadImage = async (
     throw new Error('User must be authenticated to upload images');
   }
 
-  const timestamp = Date.now();
-  const name = fileName || `image_${timestamp}.jpg`;
-  const storagePath = `${folder}/${user.uid}/${name}`;
+  if (!filePath || !filePath.trim()) {
+    throw new Error('Invalid file path provided');
+  }
 
-  const reference = storage().ref(storagePath);
+  try {
+    const timestamp = Date.now();
+    const name = fileName || `image_${timestamp}.jpg`;
+    const storagePath = `${folder}/${user.uid}/${name}`;
 
-  // Convert file:// URI to proper format for upload
-  const normalizedPath = filePath.replace('file://', '');
+    const reference = storage().ref(storagePath);
 
-  await reference.putFile(normalizedPath);
-  const downloadURL = await reference.getDownloadURL();
+    // Convert file:// URI to proper format for upload
+    // react-native-vision-camera returns absolute paths like /storage/emulated/0/... or /var/mobile/...
+    let normalizedPath = filePath.trim();
+    
+    // Remove file:// prefix if present (needed for Image component but not for Firebase Storage)
+    if (normalizedPath.startsWith('file:///')) {
+      // Android/iOS: file:///path/to/file
+      normalizedPath = normalizedPath.substring(7); // Remove 'file://'
+    } else if (normalizedPath.startsWith('file://')) {
+      // Some formats: file://path/to/file
+      normalizedPath = normalizedPath.substring(6); // Remove 'file:'
+      // Ensure it starts with / for absolute path
+      if (!normalizedPath.startsWith('/')) {
+        normalizedPath = '/' + normalizedPath;
+      }
+    }
+    
+    // Ensure we have a valid absolute path
+    if (!normalizedPath || normalizedPath.length === 0) {
+      throw new Error('Invalid file path: path is empty after normalization');
+    }
 
-  return downloadURL;
+    // Ensure path starts with / for absolute path
+    if (!normalizedPath.startsWith('/')) {
+      normalizedPath = '/' + normalizedPath;
+    }
+
+    console.log('Uploading image:');
+    console.log('  Platform:', Platform.OS);
+    console.log('  Original path:', filePath);
+    console.log('  Normalized path:', normalizedPath);
+    console.log('  Storage path:', storagePath);
+    
+    try {
+      // For Android, putFile expects the file path directly
+      // For iOS, it also expects the file path
+      // The path should be absolute and not include file://
+      await reference.putFile(normalizedPath);
+      console.log('Upload successful');
+    } catch (uploadError: any) {
+      console.error('Upload error details:', {
+        code: uploadError?.code,
+        message: uploadError?.message,
+        nativeError: uploadError?.nativeErrorCode,
+        path: normalizedPath,
+        originalPath: filePath,
+      });
+      
+      // Handle specific error codes
+      if (uploadError?.code === 'storage/object-not-found') {
+        // This is unusual for upload - might be a permissions or path issue
+        throw new Error(`Upload failed: File path may be incorrect or permissions denied. Path: ${normalizedPath}`);
+      } else if (uploadError?.code === 'storage/unauthorized') {
+        throw new Error('Permission denied. Please check your Firebase Storage security rules.');
+      } else if (uploadError?.code === 'storage/canceled') {
+        throw new Error('Upload was canceled');
+      } else if (uploadError?.message?.includes('ENOENT') || uploadError?.message?.includes('No such file')) {
+        throw new Error(`File not found at path: ${normalizedPath}. Please try capturing the photo again.`);
+      }
+      
+      // Re-throw with original error for other cases
+      throw uploadError;
+    }
+    const downloadURL = await reference.getDownloadURL();
+
+    return downloadURL;
+  } catch (error: any) {
+    console.error('Error uploading image:', error);
+    if (error?.code === 'storage/unauthorized') {
+      throw new Error('Permission denied. Please check your Firebase Storage rules.');
+    } else if (error?.code === 'storage/canceled') {
+      throw new Error('Upload was canceled');
+    } else if (error?.code === 'storage/unknown') {
+      throw new Error('Unknown error occurred during upload');
+    }
+    throw new Error(error?.message || 'Failed to upload image');
+  }
 };
 
 /**
@@ -39,11 +115,35 @@ export const uploadImage = async (
  */
 export const deleteImage = async (downloadURL: string): Promise<void> => {
   try {
+    if (!downloadURL || !downloadURL.trim()) {
+      console.warn('Invalid download URL provided for deletion');
+      return;
+    }
+
     const reference = storage().refFromURL(downloadURL);
+    
+    // Check if the file exists before trying to delete
+    try {
+      await reference.getMetadata();
+    } catch (metadataError: any) {
+      // If file doesn't exist, that's okay - it's already deleted
+      if (metadataError?.code === 'storage/object-not-found') {
+        console.log('Image already deleted or does not exist');
+        return;
+      }
+      throw metadataError;
+    }
+    
     await reference.delete();
-  } catch (error) {
+  } catch (error: any) {
+    // Handle object-not-found error gracefully
+    if (error?.code === 'storage/object-not-found') {
+      console.log('Image already deleted or does not exist');
+      return;
+    }
     console.error('Error deleting image:', error);
-    throw error;
+    // Don't throw - allow the operation to continue even if storage deletion fails
+    // This is important because the Firestore record might already be deleted
   }
 };
 
