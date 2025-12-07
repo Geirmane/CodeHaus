@@ -106,7 +106,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToSignup }) => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>POKEDEX</Text>
+            <Text style={[styles.title, { color: colors.text }]}>POKÉDEX</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               by CodeHaus
             </Text>

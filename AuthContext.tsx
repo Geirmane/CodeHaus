@@ -23,6 +23,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Auto-logout on app start - always show login screen
+    const autoLogout = async () => {
+      try {
+        const currentUser = auth().currentUser;
+        if (currentUser) {
+          await auth().signOut();
+          // Also revoke Google access if available
+          try {
+            await GoogleSignin.revokeAccess();
+          } catch (googleError) {
+            // Ignore Google sign-out errors
+            console.log('Google revoke access skipped:', googleError);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-logout error:', error);
+      }
+    };
+
+    autoLogout();
+
     const unsubscribe = auth().onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
