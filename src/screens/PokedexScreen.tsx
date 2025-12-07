@@ -94,7 +94,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
   const handleScroll = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const shouldShow = offsetY > 50; // Show when scrolled more than 50px
-    
+
     if (shouldShow !== isScrolling) {
       setIsScrolling(shouldShow);
     }
@@ -145,8 +145,8 @@ export const PokedexScreen = ({ navigation }: Props) => {
       );
     } catch (error) {
       setIsVoiceSearching(false);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Failed to start voice search. Please ensure the app is properly built and microphone permissions are granted.';
       console.error('Voice search catch error:', error);
       Alert.alert('Error', errorMessage);
@@ -269,7 +269,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
       <Animated.View
         style={[
           styles.bottomSearchContainer,
-          { 
+          {
             bottom: 70 + insets.bottom,
             backgroundColor: colors.background,
             borderColor: colors.border,
