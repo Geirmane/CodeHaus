@@ -1,10 +1,12 @@
 import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import { uploadImage } from './storage';
+import { Platform } from 'react-native';
+import RNFS from 'react-native-fs';
 
 export type CapturedPhoto = {
   id: string;
-  photoURL: string;
+  photoURL: string; // Can be local file path (file://) or remote URL
+  localPath?: string; // Local file path for local storage
   pokemonId?: number | null;
   pokemonName?: string | null;
   capturedAt: FirebaseFirestoreTypes.Timestamp;
@@ -15,7 +17,7 @@ const photosCollection = (userId: string) =>
   firestore().collection('users').doc(userId).collection('capturedPhotos');
 
 /**
- * Save a captured photo to Firestore
+ * Save a captured photo locally and store metadata in Firestore
  * @param photoPath - Local file path of the photo
  * @param pokemonId - Optional Pokémon ID if photo contains a Pokémon
  * @param pokemonName - Optional Pokémon name
@@ -31,30 +33,76 @@ export const saveCapturedPhoto = async (
     throw new Error('User must be authenticated to save photos');
   }
 
-  // Upload photo to Firebase Storage
-  const downloadURL = await uploadImage(photoPath, 'captured-photos');
+  try {
+    // Remove file:// prefix if present for file operations
+    let cleanPath = photoPath.replace(/^file:\/\//, '');
+    
+    // Verify file exists
+    const fileExists = await RNFS.exists(cleanPath);
+    if (!fileExists) {
+      throw new Error(`Photo file not found at path: ${cleanPath}`);
+    }
 
-  // Save metadata to Firestore
-  const photoData = {
-    photoURL: downloadURL,
-    pokemonId: pokemonId || null,
-    pokemonName: pokemonName || null,
-    capturedAt: firestore.FieldValue.serverTimestamp(),
-    userId: user.uid,
-  };
+    // Get file info
+    const fileInfo = await RNFS.stat(cleanPath);
+    if (fileInfo.size === 0) {
+      throw new Error('Photo file is empty');
+    }
 
-  const docRef = await photosCollection(user.uid).add(photoData);
+    // Create a permanent directory for captured photos if it doesn't exist
+    const photosDir = Platform.OS === 'android' 
+      ? `${RNFS.PicturesDirectoryPath}/CapturedPokemon`
+      : `${RNFS.DocumentDirectoryPath}/CapturedPokemon`;
+    
+    const dirExists = await RNFS.exists(photosDir);
+    if (!dirExists) {
+      await RNFS.mkdir(photosDir);
+    }
 
-  const savedData = await docRef.get();
-  const data = savedData.data();
-  return {
-    id: docRef.id,
-    photoURL: downloadURL,
-    pokemonId: pokemonId || null,
-    pokemonName: pokemonName || null,
-    capturedAt: (data?.capturedAt as FirebaseFirestoreTypes.Timestamp) || firestore.Timestamp.now(),
-    userId: user.uid,
-  } as CapturedPhoto;
+    // Generate a unique filename
+    const timestamp = Date.now();
+    const fileName = `pokemon_${user.uid}_${timestamp}.jpg`;
+    const permanentPath = `${photosDir}/${fileName}`;
+
+    // Copy file to permanent location
+    await RNFS.copyFile(cleanPath, permanentPath);
+
+    // Verify the copy was successful
+    const copyExists = await RNFS.exists(permanentPath);
+    if (!copyExists) {
+      throw new Error('Failed to save photo to permanent location');
+    }
+
+    // Create file:// URI for display
+    const fileUri = `file://${permanentPath}`;
+
+    // Save metadata to Firestore with local file path
+    const photoData = {
+      photoURL: fileUri, // Use local file path
+      localPath: permanentPath, // Store absolute path for reference
+      pokemonId: pokemonId || null,
+      pokemonName: pokemonName || null,
+      capturedAt: firestore.FieldValue.serverTimestamp(),
+      userId: user.uid,
+    };
+
+    const docRef = await photosCollection(user.uid).add(photoData);
+
+    const savedData = await docRef.get();
+    const data = savedData.data();
+    return {
+      id: docRef.id,
+      photoURL: fileUri,
+      localPath: permanentPath,
+      pokemonId: pokemonId || null,
+      pokemonName: pokemonName || null,
+      capturedAt: (data?.capturedAt as FirebaseFirestoreTypes.Timestamp) || firestore.Timestamp.now(),
+      userId: user.uid,
+    } as CapturedPhoto;
+  } catch (error: any) {
+    console.error('Error saving captured photo:', error);
+    throw new Error(`Failed to save photo: ${error?.message || 'Unknown error'}`);
+  }
 };
 
 /**
@@ -105,7 +153,7 @@ export const subscribeToCapturedPhotos = (
 /**
  * Delete a captured photo
  * @param photoId - ID of the photo document to delete
- * @param photoURL - Download URL of the photo to delete from storage
+ * @param photoURL - Local file path or URL of the photo to delete
  */
 export const deleteCapturedPhoto = async (
   photoId: string,
@@ -119,13 +167,20 @@ export const deleteCapturedPhoto = async (
   // Delete from Firestore
   await photosCollection(user.uid).doc(photoId).delete();
 
-  // Delete from Storage
+  // Delete local file if it exists
   try {
-    const { deleteImage } = await import('./storage');
-    await deleteImage(photoURL);
+    // Remove file:// prefix if present
+    let filePath = photoURL.replace(/^file:\/\//, '');
+    
+    // Check if file exists and delete it
+    const fileExists = await RNFS.exists(filePath);
+    if (fileExists) {
+      await RNFS.unlink(filePath);
+      console.log('Local photo file deleted:', filePath);
+    }
   } catch (error) {
-    console.error('Error deleting image from storage:', error);
-    // Continue even if storage deletion fails
+    console.error('Error deleting local photo file:', error);
+    // Continue even if file deletion fails
   }
 };
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -8,7 +9,6 @@ import {
   View,
   Alert,
   TouchableOpacity,
-  Animated,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ import { usePokemonList } from '../hooks/usePokemonList';
 import { useCaughtPokemon } from '../hooks/useCaughtPokemon';
 import { MainStackParamList } from '../navigation/types';
 import { useTheme } from '../context/ThemeContext';
+import { subscribeToCapturedPhotos } from '../services/photos';
 import {
   startVoiceSearch,
   stopVoiceSearch,
@@ -49,12 +50,26 @@ export const PokedexScreen = ({ navigation }: Props) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [capturedPokemonIds, setCapturedPokemonIds] = useState<Set<number>>(new Set());
   const insets = useSafeAreaInsets();
   const { theme, colors } = useTheme();
   const { isCaught } = useCaughtPokemon();
-  const searchBarOpacity = useRef(new Animated.Value(0)).current;
-  const searchBarTranslateY = useRef(new Animated.Value(20)).current;
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const bottomSearchBarOpacity = useRef(new Animated.Value(0)).current;
+  const bottomSearchBarTranslateY = useRef(new Animated.Value(20)).current;
+
+  // Subscribe to captured photos for real-time updates
+  useEffect(() => {
+    const unsubscribe = subscribeToCapturedPhotos((photos) => {
+      const ids = new Set<number>();
+      photos.forEach(photo => {
+        if (photo.pokemonId) {
+          ids.add(photo.pokemonId);
+        }
+      });
+      setCapturedPokemonIds(ids);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -62,33 +77,34 @@ export const PokedexScreen = ({ navigation }: Props) => {
     };
   }, []);
 
+  // Animate bottom search bar based on scroll state, search text, or focus
   useEffect(() => {
-    // Show search bar when scrolling OR when search is focused/has text
+    // Show search bar when scrolling, typing, or focused
     const shouldShow = isScrolling || isSearchFocused || searchText.length > 0;
     
     if (shouldShow) {
-      // Show search bar with animation
+      // Show search bar
       Animated.parallel([
-        Animated.timing(searchBarOpacity, {
+        Animated.timing(bottomSearchBarOpacity, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(searchBarTranslateY, {
+        Animated.timing(bottomSearchBarTranslateY, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
-      // Hide search bar with animation
+      // Hide search bar when not scrolling, not typing, and not focused
       Animated.parallel([
-        Animated.timing(searchBarOpacity, {
+        Animated.timing(bottomSearchBarOpacity, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
-        Animated.timing(searchBarTranslateY, {
+        Animated.timing(bottomSearchBarTranslateY, {
           toValue: 20,
           duration: 300,
           useNativeDriver: true,
@@ -116,6 +132,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
       setIsScrolling(false);
     }
   }, []);
+
 
   const handleVoiceSearch = useCallback(async () => {
     try {
@@ -178,8 +195,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
             style={[
               styles.headerTitle,
               {
-                color: colors.primary,
-                textShadowColor: theme === 'dark' ? 'rgba(255, 107, 157, 0.3)' : 'rgba(255, 107, 157, 0.4)',
+                color: colors.text,
               },
             ]}
           >
@@ -226,11 +242,12 @@ export const PokedexScreen = ({ navigation }: Props) => {
             pokemon={item}
             onPress={handleOpenDetail}
             isCaught={isCaught(item.id)}
+            isCapturedInPhoto={capturedPokemonIds.has(item.id)}
           />
         )}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: 200 + insets.bottom }, // ✅ space for filter chips + search bar + tab bar
+          { paddingBottom: 250 + insets.bottom }, // ✅ space for filter chips + search bar + tab bar + footer
         ]}
         onEndReachedThreshold={0.3}
         onEndReached={hasMore ? loadMore : undefined}
@@ -275,8 +292,21 @@ export const PokedexScreen = ({ navigation }: Props) => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* ✅ PERMANENT SEARCH BAR AT TOP - Always visible */}
-      <View style={[styles.topSearchContainer, { backgroundColor: colors.background }]}>
+      {/* ✅ BOTTOM SEARCH BAR - Shows when scrolling, typing, or focused */}
+      <Animated.View
+        style={[
+          styles.bottomSearchContainer,
+          {
+            bottom: 70 + insets.bottom,
+            backgroundColor: colors.background,
+            borderColor: colors.border,
+            shadowColor: colors.shadow,
+            opacity: bottomSearchBarOpacity,
+            transform: [{ translateY: bottomSearchBarTranslateY }],
+          },
+        ]}
+        pointerEvents={isScrolling || isSearchFocused || searchText.length > 0 ? 'auto' : 'none'}
+      >
         <SearchAndFilter
           searchText={searchText}
           onSearchChange={setSearchText}
@@ -286,31 +316,6 @@ export const PokedexScreen = ({ navigation }: Props) => {
           onClear={clearFilters}
           onFocus={() => setIsSearchFocused(true)}
           onBlur={() => setIsSearchFocused(false)}
-        />
-      </View>
-
-      {/* ✅ SEARCH BAR MOVED TO BOTTOM - Only shows when scrolling */}
-      <Animated.View
-        style={[
-          styles.bottomSearchContainer,
-          {
-            bottom: 70 + insets.bottom,
-            backgroundColor: colors.background,
-            borderColor: colors.border,
-            shadowColor: colors.shadow,
-            opacity: searchBarOpacity,
-            transform: [{ translateY: searchBarTranslateY }],
-          },
-        ]}
-        pointerEvents={isScrolling ? 'auto' : 'none'}
-      >
-        <SearchAndFilter
-          searchText={searchText}
-          onSearchChange={setSearchText}
-          selectedType={selectedType}
-          onTypeSelect={setSelectedType}
-          availableTypes={availableTypes}
-          onClear={clearFilters}
         />
       </Animated.View>
     </View>
@@ -336,19 +341,16 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: '900',
-    letterSpacing: 1.5,
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 10,
+    letterSpacing: -1,
   },
 
   headerSubtitle: {
     fontSize: 16,
     color: '#FF6B9D',
     marginTop: 8,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontWeight: '400',
   },
 
   menuButton: {
@@ -425,24 +427,21 @@ const styles = StyleSheet.create({
 
   footerLoader: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 30,
+    paddingBottom: 50,
     gap: 10,
   },
 
   footerText: {
     textAlign: 'center',
-    paddingVertical: 20,
+    paddingVertical: 30,
+    paddingBottom: 50,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
 
-  /* ✅ TOP SEARCH BAR - Always visible */
-  topSearchContainer: {
-    marginBottom: 18,
-  },
-
-  /* ✅ BOTTOM SEARCH BAR */
+  /* ✅ BOTTOM SEARCH BAR - Only shows when scrolling */
   bottomSearchContainer: {
     position: 'absolute',
     left: 18,
@@ -455,5 +454,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 10,
+    zIndex: 1000,
   },
 });

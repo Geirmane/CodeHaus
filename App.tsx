@@ -18,6 +18,7 @@ import { HuntScreen } from './src/screens/HuntScreen';
 import { ARCameraScreen } from './src/screens/ARCameraScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { PokemonsScreen } from './src/screens/PokemonsScreen';
 import { capitalize } from './src/utils/pokemon';
 import LoadingScreen from './LoadingScreen';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -63,6 +64,13 @@ const PokedexTab = () => {
         component={ProfileScreen}
         options={{
           title: 'Profile',
+        }}
+      />
+      <MainStack.Screen
+        name="Pokemons"
+        component={PokemonsScreen}
+        options={{
+          title: 'Pokemons',
         }}
       />
     </MainStack.Navigator>
@@ -138,6 +146,13 @@ const HuntTabWithMenu = () => {
           title: 'Profile',
         }}
       />
+      <MainStack.Screen
+        name="Pokemons"
+        component={PokemonsScreen}
+        options={{
+          title: 'Pokemons',
+        }}
+      />
     </MainStack.Navigator>
   );
 };
@@ -169,6 +184,13 @@ const ARCameraTab = () => {
         component={ProfileScreen}
         options={{
           title: 'Profile',
+        }}
+      />
+      <MainStack.Screen
+        name="Pokemons"
+        component={PokemonsScreen}
+        options={{
+          title: 'Pokemons',
         }}
       />
     </MainStack.Navigator>

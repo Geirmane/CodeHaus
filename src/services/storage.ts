@@ -122,8 +122,14 @@ export const uploadImage = async (
           contentType: 'image/jpeg',
         });
         
-        // Wait for upload to complete
-        await uploadTask;
+        // Wait for upload to complete and verify it succeeded
+        const taskSnapshot = await uploadTask;
+        
+        // Verify upload completed successfully
+        if (taskSnapshot.state !== 'success') {
+          throw new Error(`Upload failed with state: ${taskSnapshot.state}`);
+        }
+        
         console.log('Upload successful using base64 method');
       } catch (base64Error: any) {
         console.error('Base64 upload error:', base64Error);
@@ -140,7 +146,8 @@ export const uploadImage = async (
         } else if (base64Error?.code === 'storage/quota-exceeded') {
           throw new Error('Storage quota exceeded. Please check your Firebase Storage plan.');
         } else if (base64Error?.code === 'storage/object-not-found') {
-          throw new Error('Upload failed: File reference not found. Please try again.');
+          // This error shouldn't occur during upload, but if it does, it's likely a file access issue
+          throw new Error('Failed to access photo file. Please try capturing again.');
         } else if (base64Error?.code === 'storage/unknown' || base64Error?.message?.includes('bytes cannot be null')) {
           throw new Error(
             'Failed to read file data. The photo file may be corrupted or inaccessible. ' +
@@ -162,7 +169,14 @@ export const uploadImage = async (
       // For non-cache files, try the standard putFile method first
       try {
         console.log('  Attempting upload using putFile method');
-        await reference.putFile(uploadPath);
+        const uploadTask = reference.putFile(uploadPath);
+        
+        // Wait for upload to complete and verify it succeeded
+        const taskSnapshot = await uploadTask;
+        if (taskSnapshot.state !== 'success') {
+          throw new Error(`Upload failed with state: ${taskSnapshot.state}`);
+        }
+        
         console.log('Upload successful using putFile method');
       } catch (uploadError: any) {
         // If putFile fails on Android and it's not a cache file, try base64 as fallback
@@ -176,7 +190,13 @@ export const uploadImage = async (
             const uploadTask = reference.putString(base64Data, 'base64', {
               contentType: 'image/jpeg',
             });
-            await uploadTask;
+            
+            // Wait for upload to complete and verify it succeeded
+            const taskSnapshot = await uploadTask;
+            if (taskSnapshot.state !== 'success') {
+              throw new Error(`Upload failed with state: ${taskSnapshot.state}`);
+            }
+            
             console.log('Upload successful using base64 fallback method');
           } catch (fallbackError: any) {
             // If base64 also fails, throw the original putFile error
@@ -194,7 +214,8 @@ export const uploadImage = async (
         
         // Handle specific error codes
         if (uploadError?.code === 'storage/object-not-found') {
-          throw new Error(`File not accessible at path: ${uploadPath}. The photo file may have been moved or deleted. Please try capturing again.`);
+          // This error typically means the file reference in Storage doesn't exist, but during upload it might mean file access issue
+          throw new Error(`Failed to access photo file at path: ${uploadPath}. Please try capturing again.`);
         } else if (uploadError?.code === 'storage/unauthorized') {
           throw new Error('Permission denied. Please check your Firebase Storage security rules.');
         } else if (uploadError?.code === 'storage/canceled') {
@@ -219,28 +240,75 @@ export const uploadImage = async (
     }
     
     // Wait a moment to ensure upload is fully processed
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Get download URL
-    try {
-      const downloadURL = await reference.getDownloadURL();
-      console.log('Download URL obtained successfully');
-      return downloadURL;
-    } catch (urlError: any) {
-      console.error('Error getting download URL:', urlError);
-      // Check if file exists first
+    // Get download URL with retry logic
+    let downloadURL: string | null = null;
+    let retries = 3;
+    let lastError: any = null;
+    
+    while (retries > 0 && !downloadURL) {
       try {
-        await reference.getMetadata();
-        // File exists, retry getting URL
-        const downloadURL = await reference.getDownloadURL();
-        return downloadURL;
-      } catch (metadataError: any) {
-        if (metadataError?.code === 'storage/object-not-found') {
-          throw new Error('Upload completed but file not found at reference. Please try again.');
+        // First verify the file exists
+        try {
+          const metadata = await reference.getMetadata();
+          console.log('File metadata verified:', {
+            size: metadata.size,
+            contentType: metadata.contentType,
+            fullPath: metadata.fullPath,
+          });
+        } catch (metadataError: any) {
+          console.error('Metadata check failed:', metadataError);
+          if (metadataError?.code === 'storage/object-not-found') {
+            // Wait a bit longer and retry
+            if (retries > 1) {
+              console.log(`File not found yet, waiting longer before retry (${retries} retries left)...`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              retries--;
+              continue;
+            } else {
+              throw new Error('Upload completed but file not found at reference. The upload may have failed. Please try again.');
+            }
+          }
+          throw metadataError;
         }
-        throw new Error(`Failed to get download URL: ${urlError?.message || 'Unknown error'}`);
+        
+        // Get download URL
+        downloadURL = await reference.getDownloadURL();
+        console.log('Download URL obtained successfully');
+        break;
+      } catch (urlError: any) {
+        console.error(`Error getting download URL (${retries} retries left):`, urlError);
+        lastError = urlError;
+        
+        if (urlError?.code === 'storage/object-not-found') {
+          if (retries > 1) {
+            // Wait longer before retrying
+            console.log('Waiting before retry...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            retries--;
+            continue;
+          } else {
+            throw new Error('Upload completed but file not found at reference. The upload may have failed. Please try again.');
+          }
+        }
+        
+        // For other errors, retry once more
+        if (retries > 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          retries--;
+          continue;
+        } else {
+          throw new Error(`Failed to get download URL: ${urlError?.message || 'Unknown error'}`);
+        }
       }
     }
+    
+    if (!downloadURL) {
+      throw new Error(`Failed to get download URL after retries: ${lastError?.message || 'Unknown error'}`);
+    }
+    
+    return downloadURL;
   } catch (error: any) {
     console.error('Error uploading image:', error);
     if (error?.code === 'storage/unauthorized') {

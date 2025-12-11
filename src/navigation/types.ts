@@ -8,6 +8,7 @@ export type MainStackParamList = {
   ARCamera: undefined;
   Settings: undefined;
   Profile: undefined;
+  Pokemons: undefined;
 };
 
 export type TabParamList = {

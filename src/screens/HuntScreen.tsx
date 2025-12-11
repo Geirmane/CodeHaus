@@ -396,7 +396,7 @@ export const HuntScreen = ({ navigation }: Props) => {
 
       {spawns.length > 0 && (
         <View style={styles.spawnInfo}>
-          <Text style={styles.spawnInfoText}>{spawns.length} Pokémon nearby</Text>
+          <Text style={styles.spawnInfoText}>Pokemons nearby</Text>
         </View>
       )}
     </View>
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   spawnInfo: {
     position: 'absolute',
-    top: 20,
+    bottom: 100,
     left: 16,
     right: 16,
     backgroundColor: '#fff',

@@ -25,7 +25,10 @@ export const usePokemonDetail = (pokemonId: number) => {
 
         const fresh = await fetchPokemonDetailBundle(pokemonId);
         setBundle(fresh);
-        await savePokemonDetailCache(pokemonId, fresh);
+        // Save cache in background, don't wait for it to avoid blocking
+        savePokemonDetailCache(pokemonId, fresh).catch((err) => {
+          console.warn('Background cache save failed:', err);
+        });
       } catch (err) {
         if (!cacheServed) {
           setError(err instanceof Error ? err.message : 'Unable to load detail right now.');

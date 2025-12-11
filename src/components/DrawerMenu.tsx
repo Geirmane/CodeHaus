@@ -62,6 +62,11 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0, navigation: naviga
     nav.navigate('Settings');
   };
 
+  const handlePokemons = () => {
+    onClose();
+    nav.navigate('Pokemons');
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -139,6 +144,15 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0, navigation: naviga
               >
                 <Text style={styles.menuItemIcon}>⚙️</Text>
                 <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handlePokemons}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>📸</Text>
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Pokemons</Text>
               </TouchableOpacity>
 
               <View style={[styles.divider, { backgroundColor: colors.border }]} />

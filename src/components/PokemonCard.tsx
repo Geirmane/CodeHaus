@@ -9,9 +9,10 @@ type Props = {
   pokemon: PokemonDetail;
   onPress: (pokemonId: number, name: string) => void;
   isCaught?: boolean;
+  isCapturedInPhoto?: boolean;
 };
 
-export const PokemonCard = ({ pokemon, onPress, isCaught = false }: Props) => {
+export const PokemonCard = ({ pokemon, onPress, isCaught = false, isCapturedInPhoto = false }: Props) => {
   const { colors } = useTheme();
   const spriteUri = getSpriteUri(pokemon.sprites);
 
@@ -72,23 +73,34 @@ export const PokemonCard = ({ pokemon, onPress, isCaught = false }: Props) => {
         </View>
       </View>
 
-      {spriteUri ? (
-        <Image source={{ uri: spriteUri }} style={styles.sprite} resizeMode="contain" />
-      ) : (
-        <View
-          style={[
-            styles.spritePlaceholder,
-            {
-              backgroundColor: colors.background,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.spritePlaceholderText, { color: colors.primary }]}>
-            No image
-          </Text>
-        </View>
-      )}
+      <View style={styles.spriteContainer}>
+        {spriteUri ? (
+          <Image source={{ uri: spriteUri }} style={styles.sprite} resizeMode="contain" />
+        ) : (
+          <View
+            style={[
+              styles.spritePlaceholder,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.spritePlaceholderText, { color: colors.primary }]}>
+              No image
+            </Text>
+          </View>
+        )}
+        {isCapturedInPhoto && (
+          <View style={styles.pokeballIndicator}>
+            <View style={styles.pokeballTop} />
+            <View style={styles.pokeballCenter}>
+              <Text style={styles.pokeballCheckmark}>✓</Text>
+            </View>
+            <View style={styles.pokeballBottom} />
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -142,10 +154,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  sprite: {
+  spriteContainer: {
+    position: 'relative',
     width: '100%',
     height: 150,
     marginBottom: 16,
+  },
+  sprite: {
+    width: '100%',
+    height: 150,
   },
   spritePlaceholder: {
     height: 150,
@@ -175,6 +192,64 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  pokeballIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#000000',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  pokeballTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: '#FF0000',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  pokeballCenter: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    top: '50%',
+    left: '50%',
+    marginTop: -6,
+    marginLeft: -6,
+    zIndex: 1,
+  },
+  pokeballBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  pokeballCheckmark: {
+    fontSize: 8,
+    color: '#4CAF50',
+    fontWeight: 'bold',
   },
 });
 

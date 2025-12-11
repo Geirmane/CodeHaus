@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   Animated,
   ActivityIndicator,
 } from 'react-native';
@@ -21,86 +20,14 @@ type SignupScreenProps = {
   onNavigateToLogin: () => void;
 };
 
-type StarterPokemon = {
-  id: number;
-  name: string;
-  sprite: string;
-};
-
-// Starter Card Component with Animation
-const StarterCard: React.FC<{
-  starter: StarterPokemon;
-  isSelected: boolean;
-  onPress: () => void;
-  disabled: boolean;
-  colors: any;
-  hasError: boolean;
-}> = ({ starter, isSelected, onPress, disabled, colors, hasError }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: isSelected ? 1.1 : 1,
-      useNativeDriver: true,
-      tension: 300,
-      friction: 10,
-    }).start();
-  }, [isSelected]);
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={[
-          styles.starterCard,
-          {
-            backgroundColor: colors.card,
-            borderColor: isSelected ? colors.primary : colors.border,
-            shadowColor: colors.shadow,
-          },
-          isSelected && styles.selectedStarter,
-          hasError && !isSelected && {
-            borderColor: colors.error,
-            borderWidth: 3,
-          },
-        ]}
-        onPress={onPress}
-        disabled={disabled}
-        activeOpacity={0.7}
-      >
-        <View style={[
-          styles.starterImageContainer,
-          isSelected && { backgroundColor: colors.primaryLight }
-        ]}>
-          <Image
-            source={{ uri: starter.sprite }}
-            style={styles.starterImage}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={[styles.starterName, { color: colors.primary }]}>
-          {starter.name.charAt(0).toUpperCase() + starter.name.slice(1)}
-        </Text>
-        {isSelected && (
-          <View style={[styles.checkmark, { backgroundColor: colors.primary }]}>
-            <Text style={styles.checkmarkText}>✓</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
 const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedStarter, setSelectedStarter] = useState<number | null>(null);
-  const [starters, setStarters] = useState<StarterPokemon[]>([]);
   const [emailErrors, setEmailErrors] = useState<string[]>([]);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [confirmPasswordError, setConfirmPasswordError] = useState<string>('');
-  const [starterError, setStarterError] = useState<string>('');
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -124,32 +51,6 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
-
-  useEffect(() => {
-    // Fetch starter Pokemon from PokeAPI (Bulbasaur, Charmander, Squirtle)
-    const fetchStarters = async () => {
-      const starterIds = [1, 4, 7]; // Bulbasaur, Charmander, Squirtle
-      const promises = starterIds.map(async (id) => {
-        try {
-          const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-          const data = await response.json();
-          return {
-            id: data.id,
-            name: data.name,
-            sprite: data.sprites.front_default,
-          };
-        } catch (error) {
-          console.error('Error fetching starter:', error);
-          return null;
-        }
-      });
-
-      const results = await Promise.all(promises);
-      setStarters(results.filter((s): s is StarterPokemon => s !== null));
-    };
-
-    fetchStarters();
   }, []);
 
   useEffect(() => {
@@ -225,9 +126,6 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
   }, [password, confirmPassword]);
 
   const handleSignup = async () => {
-    // Reset starter error
-    setStarterError('');
-
     if (!email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -245,11 +143,6 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
 
     if (confirmPasswordError) {
       return; // Error is already displayed below the field
-    }
-
-    if (!selectedStarter) {
-      setStarterError('Please choose your starter Pokémon to begin your journey!');
-      return;
     }
 
     setIsLoading(true);
@@ -284,43 +177,10 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ onNavigateToLogin }) => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.titleContainer}>
-              <Text style={[styles.title, { color: colors.primary }]}>Begin Your Journey!</Text>
-              <View style={[styles.titleUnderline, { backgroundColor: colors.primary }]} />
-            </View>
+            <Text style={[styles.title, { color: colors.text }]}>Begin Your Journey!</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Create your Trainer Account
             </Text>
-          </View>
-
-          {/* Starter Selection */}
-          <View style={styles.starterSection}>
-            <Text style={[styles.sectionTitle, { color: colors.primary }]}>
-              Choose Your Starter Pokémon
-            </Text>
-            <View style={styles.starterContainer}>
-              {starters.map((starter) => (
-                <StarterCard
-                  key={starter.id}
-                  starter={starter}
-                  isSelected={selectedStarter === starter.id}
-                  onPress={() => {
-                    setSelectedStarter(starter.id);
-                    setStarterError('');
-                  }}
-                  disabled={isLoading}
-                  colors={colors}
-                  hasError={!!starterError && !selectedStarter}
-                />
-              ))}
-            </View>
-            {starterError && (
-              <View style={[styles.starterErrorContainer, { backgroundColor: colors.primaryLight, borderLeftColor: colors.error }]}>
-                <Text style={[styles.starterErrorText, { color: colors.error }]}>
-                  ⚠️ {starterError}
-                </Text>
-              </View>
-            )}
           </View>
 
           {/* Signup Form */}
@@ -572,108 +432,19 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 32,
-  },
-  titleContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 48,
   },
   title: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: '900',
-    letterSpacing: 1.2,
-    textAlign: 'center',
     marginBottom: 8,
-  },
-  titleUnderline: {
-    width: 80,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 4,
+    textAlign: 'center',
+    letterSpacing: -1,
   },
   subtitle: {
     fontSize: 16,
-    fontWeight: '500',
-    letterSpacing: 0.5,
+    fontWeight: '400',
     textAlign: 'center',
-  },
-  starterSection: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 24,
-    letterSpacing: 0.8,
-  },
-  starterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  starterCard: {
-    borderRadius: 24,
-    padding: 16,
-    alignItems: 'center',
-    width: 110,
-    borderWidth: 3,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 10,
-    position: 'relative',
-  },
-  selectedStarter: {
-    borderWidth: 4,
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 15,
-  },
-  starterImageContainer: {
-    borderRadius: 20,
-    padding: 8,
-    marginBottom: 8,
-  },
-  starterImage: {
-    width: 80,
-    height: 80,
-  },
-  starterName: {
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 4,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  checkmark: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmarkText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  starterErrorContainer: {
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 16,
-    borderLeftWidth: 5,
-  },
-  starterErrorText: {
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.3,
   },
   formContainer: {
     borderRadius: 32,
@@ -689,9 +460,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '400',
     marginBottom: 12,
-    letterSpacing: 0.5,
   },
   inputWrapper: {
     borderRadius: 20,
@@ -702,7 +472,7 @@ const styles = StyleSheet.create({
   input: {
     padding: 18,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     borderRadius: 20,
   },
   eyeButton: {
@@ -782,9 +552,9 @@ const styles = StyleSheet.create({
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   loginContainer: {
     flexDirection: 'row',
@@ -794,12 +564,11 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   loginLink: {
     fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   footer: {
