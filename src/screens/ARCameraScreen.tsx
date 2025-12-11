@@ -43,18 +43,9 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   } | null>(null);
   const spawnPositionSeedRef = useRef(0);
   const [loading, setLoading] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [capturedPhotoPath, setCapturedPhotoPath] = useState<string | null>(null); // Store raw path for saving
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const insets = useSafeAreaInsets();
-
-  // Reset saving state whenever a new photo is captured
-  useEffect(() => {
-    if (capturedPhoto && capturedPhotoPath) {
-      setSavingPhoto(false);
-    }
-  }, [capturedPhoto, capturedPhotoPath]);
 
   useEffect(() => {
     if (!hasPermission) {
@@ -77,9 +68,9 @@ export const ARCameraScreen = ({ navigation }: Props) => {
 
 
   const loadRandomPokemon = useCallback(async () => {
-    // Don't load if camera is not active or in preview mode
+    // Don't load if camera is not active
     // Also don't load if there's already a Pokémon on screen (user must interact with it first)
-    if (!isActive || capturedPhoto || currentPokemon) {
+    if (!isActive || currentPokemon) {
       return;
     }
 
@@ -110,7 +101,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [isActive, capturedPhoto, currentPokemon]);
+  }, [isActive, currentPokemon]);
 
   // Update spawn position seed periodically to vary positions
   useEffect(() => {
@@ -125,7 +116,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
 
   // Auto-spawn Pokémon at random intervals (only if no Pokémon is currently on screen)
   useEffect(() => {
-    if (!isActive || capturedPhoto || !hasPermission || !device || currentPokemon) {
+    if (!isActive || !hasPermission || !device || currentPokemon) {
       return;
     }
 
@@ -162,7 +153,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         clearTimeout(intervalId);
       }
     };
-  }, [isActive, capturedPhoto, hasPermission, device, currentPokemon, loadRandomPokemon]);
+  }, [isActive, hasPermission, device, currentPokemon, loadRandomPokemon]);
 
   // Don't auto-clear Pokémon - only clear when user chooses to run away or after capture
 
@@ -171,78 +162,66 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       return;
     }
 
+    // Prevent multiple simultaneous capture operations
+    if (savingPhoto) {
+      console.log('Capture operation already in progress');
+      return;
+    }
+
     try {
-      // Reset saving state when taking a new photo
-      setSavingPhoto(false);
+      setSavingPhoto(true);
+      
+      // Get the current Pokémon in the photo before capturing
+      const pokemonInPhoto = currentPokemon;
       
       // Take the camera photo
       const photo = await camera.current.takePhoto({
         flash: 'off',
       });
 
-      // Store the photo path - we'll composite with Pokémon in the preview
-      setSavingPhoto(false);
-      setCapturedPhotoPath(photo.path);
-      setCapturedPhoto(`file://${photo.path}`);
-    } catch (error) {
-      console.warn('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to capture photo');
-      setSavingPhoto(false); // Reset on error
-    }
-  };
-
-  const handleSavePhoto = async () => {
-    if (!capturedPhoto || !capturedPhotoPath) return;
-    
-    // Prevent multiple simultaneous save operations
-    if (savingPhoto) {
-      console.log('Save operation already in progress');
-      return;
-    }
-
-    try {
-      setSavingPhoto(true);
-      // Get the current Pokémon in the photo
-      const pokemonInPhoto = currentPokemon;
-      
-      console.log('Saving photo with path:', capturedPhotoPath);
+      console.log('Photo captured with path:', photo.path);
       console.log('Pokémon in photo:', pokemonInPhoto?.pokemon.name);
       
       // Add a small delay to ensure the file is fully written
       await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
       
-      // Save photo locally and store metadata in Firestore
+      // Automatically save photo locally and store metadata in Firestore
       await saveCapturedPhoto(
-        capturedPhotoPath,
+        photo.path,
         pokemonInPhoto?.pokemon.id,
         pokemonInPhoto?.pokemon.name,
       );
       
+      console.log('Photo saved successfully, showing alert...');
+      
       // Reset saving state before showing alert
       setSavingPhoto(false);
       
-      Alert.alert(
-        'Photo Saved!',
-        pokemonInPhoto ? `You captured ${capitalize(pokemonInPhoto.pokemon.name)}!` : 'Photo saved!',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => { 
-              setCapturedPhoto(null); 
-              setCapturedPhotoPath(null); 
-              setCurrentPokemon(null); 
-            } 
-          },
-        ],
-      );
+      // Show success message - use requestAnimationFrame to ensure UI is ready
+      requestAnimationFrame(() => {
+        Alert.alert(
+          'Captured Successfully!',
+          pokemonInPhoto ? `You captured ${capitalize(pokemonInPhoto.pokemon.name)}!` : 'Photo captured successfully!',
+          [
+            { 
+              text: 'OK', 
+              onPress: () => { 
+                console.log('Alert OK pressed, clearing Pokémon');
+                // Clear current Pokémon to allow new spawn
+                setCurrentPokemon(null);
+              } 
+            },
+          ],
+        );
+      });
     } catch (error: any) {
-      console.error('Error saving photo:', error);
+      console.error('Error capturing photo:', error);
       console.error('Error message:', error?.message);
       
       // Reset saving state on error
       setSavingPhoto(false);
       
-      const errorMessage = error?.message || 'Failed to save photo. Please try again.';
+      const errorMessage = error?.message || 'Failed to capture photo. Please try again.';
       Alert.alert('Error', errorMessage);
     }
   };
@@ -271,65 +250,6 @@ export const ARCameraScreen = ({ navigation }: Props) => {
   }
 
 
-  if (capturedPhoto) {
-    return (
-      <View style={styles.previewContainer}>
-        <Image source={{ uri: capturedPhoto }} style={styles.previewImage} resizeMode="contain" />
-        
-        {/* Show Pokémon overlay on the preview image */}
-        {currentPokemon && (() => {
-          const spriteUri = getSpriteUri(currentPokemon.pokemon.sprites);
-          if (!spriteUri) return null;
-          
-          return (
-            <View
-              key={currentPokemon.id}
-              style={styles.pokemonOverlayContainer}
-            >
-              <View style={styles.pokemonOverlay}>
-                <Image source={{ uri: spriteUri }} style={styles.overlayImage} resizeMode="contain" />
-                <Text style={styles.overlayText}>{capitalize(currentPokemon.pokemon.name)}</Text>
-              </View>
-            </View>
-          );
-        })()}
-        
-        <View style={[styles.previewControls, { bottom: 100 + insets.bottom }]}>
-          <TouchableOpacity
-            style={[styles.previewButton, { backgroundColor: colors.surface }]}
-            onPress={() => {
-              // Reset all states when retaking
-              setSavingPhoto(false);
-              setCapturedPhoto(null);
-              setCapturedPhotoPath(null);
-              // Keep Pokémon on screen after retake
-            }}
-          >
-            <Text style={[styles.previewButtonText, { color: colors.text }]}>Retake</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.previewButton, 
-              { 
-                backgroundColor: savingPhoto ? colors.surface : colors.primary,
-                opacity: savingPhoto ? 0.6 : 1,
-              }
-            ]}
-            onPress={handleSavePhoto}
-            disabled={savingPhoto || !capturedPhoto || !capturedPhotoPath}
-          >
-            {savingPhoto ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={[styles.previewButtonText, { color: '#FFFFFF' }]}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // This line is no longer needed as we render multiple Pokémon directly
 
   const { width, height } = Dimensions.get('window');
 
@@ -377,7 +297,12 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       })()}
 
       <View style={styles.controls}>
-        <TouchableOpacity style={styles.captureButton} onPress={takePhoto} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.captureButton} 
+          onPress={takePhoto} 
+          activeOpacity={0.8}
+          disabled={savingPhoto}
+        >
           <LottieView
             source={require('../../assets/Pokeball.json')}
             autoPlay
@@ -545,38 +470,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  previewContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    position: 'relative',
-  },
-  previewImage: {
-    flex: 1,
-    width: '100%',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  previewControls: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-  },
-  previewButton: {
-    backgroundColor: '#ef5350',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  previewButtonText: {
-    color: '#fff',
-    fontWeight: '600',
   },
 });
 
