@@ -97,65 +97,64 @@ export const DrawerMenu = ({ visible, onClose, topOffset = 0, navigation: naviga
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <Animated.View
-              style={[
-                styles.drawer,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  transform: [{ translateX: slideAnim }],
-                  paddingTop: topOffset > 0 ? insets.top + topOffset : insets.top,
-                },
-              ]}
-            >
-              <View style={[styles.drawerHeader, { borderBottomColor: colors.border, paddingTop: topOffset > 0 ? 0 : 20 }]}>
-                <Text style={[styles.drawerTitle, { color: colors.primary }]}>Menu</Text>
-                <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.closeButtonText, { color: colors.primary }]}>✕</Text>
-                </TouchableOpacity>
+          <Animated.View
+            style={[
+              styles.drawer,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                transform: [{ translateX: slideAnim }],
+                paddingTop: topOffset > 0 ? insets.top + topOffset : insets.top,
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={[styles.drawerHeader, { borderBottomColor: colors.border, paddingTop: topOffset > 0 ? 0 : 20 }]}>
+              <Text style={[styles.drawerTitle, { color: colors.primary }]}>Menu</Text>
+              <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.closeButtonText, { color: colors.primary }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {user && (
+              <View style={[styles.userInfo, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.userEmail, { color: colors.primary }]}>{user.email}</Text>
               </View>
+            )}
 
-              {user && (
-                <View style={[styles.userInfo, { borderBottomColor: colors.border }]}>
-                  <Text style={[styles.userEmail, { color: colors.primary }]}>{user.email}</Text>
-                </View>
-              )}
+            <View style={styles.menuItems}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleProfile}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>👤</Text>
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Profile</Text>
+              </TouchableOpacity>
 
-              <View style={styles.menuItems}>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleProfile}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.menuItemIcon}>👤</Text>
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>Profile</Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleSettings}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>⚙️</Text>
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleSettings}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.menuItemIcon}>⚙️</Text>
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>Settings</Text>
-                </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-                <TouchableOpacity
-                  style={[styles.menuItem, styles.logoutItem]}
-                  onPress={handleLogout}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.menuItemIcon}>🚪</Text>
-                  <Text style={[styles.menuItemText, styles.logoutText, { color: colors.primary }]}>
-                    Logout
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          </TouchableWithoutFeedback>
+              <TouchableOpacity
+                style={[styles.menuItem, styles.logoutItem]}
+                onPress={handleLogout}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>🚪</Text>
+                <Text style={[styles.menuItemText, styles.logoutText, { color: colors.primary }]}>
+                  Logout
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         </View>
       </TouchableWithoutFeedback>
     </Modal>

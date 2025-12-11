@@ -21,6 +21,7 @@ import {
 import { spawnPokemonNearby, SpawnedPokemon, removeSpawn } from '../services/pokemonSpawn';
 import { MainStackParamList } from '../navigation/types';
 import { capitalize } from '../utils/pokemon';
+import { useCaughtPokemon } from '../hooks/useCaughtPokemon';
 
 type Props = NativeStackScreenProps<MainStackParamList, 'Hunt'>;
 
@@ -33,6 +34,7 @@ export const HuntScreen = ({ navigation }: Props) => {
   const [hunting, setHunting] = useState(false);
   const huntingRef = useRef(hunting);
   const webViewRef = useRef<WebView | null>(null);
+  const { catchPokemon } = useCaughtPokemon();
 
   useEffect(() => {
     huntingRef.current = hunting;
@@ -134,10 +136,16 @@ export const HuntScreen = ({ navigation }: Props) => {
     );
   };
 
-  const handleCatchPokemon = (spawn: SpawnedPokemon) => {
-    removeSpawn(spawn.id);
-    setSpawns((prev) => prev.filter((s) => s.id !== spawn.id));
-    Alert.alert('Gotcha!', `You caught ${capitalize(spawn.pokemon.name)}!`);
+  const handleCatchPokemon = async (spawn: SpawnedPokemon) => {
+    try {
+      await catchPokemon(spawn.pokemon.id, spawn.pokemon.name);
+      removeSpawn(spawn.id);
+      setSpawns((prev) => prev.filter((s) => s.id !== spawn.id));
+      Alert.alert('Gotcha!', `You caught ${capitalize(spawn.pokemon.name)}!`);
+    } catch (error) {
+      console.error('Error catching pokemon:', error);
+      Alert.alert('Error', 'Failed to save caught pokemon. Please try again.');
+    }
   };
 
   const handleRefresh = () => {
@@ -182,12 +190,37 @@ export const HuntScreen = ({ navigation }: Props) => {
           <script>
             const map = new maplibregl.Map({
               container: 'map',
-              style: 'https://demotiles.maplibre.org/style.json',
+              style: {
+                version: 8,
+                sources: {
+                  'osm-tiles': {
+                    type: 'raster',
+                    tiles: [
+                      'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                    ],
+                    tileSize: 256,
+                    attribution: '© OpenStreetMap contributors'
+                  }
+                },
+                layers: [
+                  {
+                    id: 'osm-tiles',
+                    type: 'raster',
+                    source: 'osm-tiles',
+                    minzoom: 0,
+                    maxzoom: 19
+                  }
+                ]
+              },
               center: [${location.longitude}, ${location.latitude}],
               zoom: 15
             });
 
-            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            map.on('load', () => {
+              map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            });
 
             let userMarker = null;
             const spawnMarkers = {};

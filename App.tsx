@@ -1,10 +1,11 @@
 import 'react-native-gesture-handler';
 import '@react-native-firebase/app';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { ActivityIndicator, StatusBar, Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,10 +31,10 @@ const Tab = createBottomTabNavigator<TabParamList>();
 
 const getScreenOptions = (colors: any): NativeStackNavigationOptions => ({
   headerStyle: { 
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
   },
-  headerTintColor: '#fff',
-  headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+  headerTintColor: colors.text,
+  headerTitleStyle: { fontWeight: '800', fontSize: 20, color: colors.text },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.background },
 });
@@ -68,57 +69,76 @@ const PokedexTab = () => {
   );
 };
 
-const HuntTabWithMenu = () => {
+const HuntScreenWrapper = ({ navigation }: NativeStackScreenProps<MainStackParamList, 'Hunt'>) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { colors } = useTheme();
   
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={[
+            headerStyles.menuButton,
+            {
+              backgroundColor: colors.primaryLight,
+            },
+          ]}
+          onPress={() => setDrawerVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={[headerStyles.menuButtonText, { color: colors.primary }]}>☰</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, colors]);
+  
   return (
     <>
-      <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
-        <MainStack.Screen 
-          name="Hunt" 
-          component={HuntScreen} 
-          options={{ 
-            title: 'Hunt Pokémon',
-            headerRight: () => (
-              <TouchableOpacity
-                style={headerStyles.menuButton}
-                onPress={() => setDrawerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Text style={headerStyles.menuButtonText}>☰</Text>
-              </TouchableOpacity>
-            ),
-          }} 
-        />
-        <MainStack.Screen
-          name="PokemonDetail"
-          component={PokemonDetailScreen}
-          options={({ route }) => ({
-            title: capitalize(route.params.name),
-          })}
-        />
-        <MainStack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{
-            title: 'Settings',
-          }}
-        />
-        <MainStack.Screen
-          name="Profile"
-          component={ProfileScreen}
-          options={{
-            title: 'Profile',
-          }}
-        />
-      </MainStack.Navigator>
+      <HuntScreen navigation={navigation} />
       <DrawerMenu 
         visible={drawerVisible} 
         onClose={() => setDrawerVisible(false)} 
         topOffset={0}
+        navigation={navigation}
       />
     </>
+  );
+};
+
+const HuntTabWithMenu = () => {
+  const { colors } = useTheme();
+  
+  return (
+    <MainStack.Navigator screenOptions={getScreenOptions(colors)}>
+      <MainStack.Screen 
+        name="Hunt" 
+        component={HuntScreenWrapper} 
+        options={{ 
+          title: 'Hunt Pokémon',
+        }} 
+      />
+      <MainStack.Screen
+        name="PokemonDetail"
+        component={PokemonDetailScreen}
+        options={({ route }) => ({
+          title: capitalize(route.params.name),
+        })}
+      />
+      <MainStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+        }}
+      />
+      <MainStack.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Profile',
+        }}
+      />
+    </MainStack.Navigator>
   );
 };
 
@@ -314,14 +334,12 @@ const headerStyles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   menuButtonText: {
     fontSize: 22,
-    color: '#FFFFFF',
     fontWeight: '700',
   },
 });

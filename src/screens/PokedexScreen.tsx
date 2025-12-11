@@ -17,6 +17,7 @@ import { PokemonCard } from '../components/PokemonCard';
 import { SearchAndFilter } from '../components/SearchAndFilter';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { usePokemonList } from '../hooks/usePokemonList';
+import { useCaughtPokemon } from '../hooks/useCaughtPokemon';
 import { MainStackParamList } from '../navigation/types';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -47,8 +48,10 @@ export const PokedexScreen = ({ navigation }: Props) => {
   const [isVoiceSearching, setIsVoiceSearching] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const insets = useSafeAreaInsets();
   const { theme, colors } = useTheme();
+  const { isCaught } = useCaughtPokemon();
   const searchBarOpacity = useRef(new Animated.Value(0)).current;
   const searchBarTranslateY = useRef(new Animated.Value(20)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -60,7 +63,10 @@ export const PokedexScreen = ({ navigation }: Props) => {
   }, []);
 
   useEffect(() => {
-    if (isScrolling) {
+    // Show search bar when scrolling OR when search is focused/has text
+    const shouldShow = isScrolling || isSearchFocused || searchText.length > 0;
+    
+    if (shouldShow) {
       // Show search bar with animation
       Animated.parallel([
         Animated.timing(searchBarOpacity, {
@@ -89,7 +95,7 @@ export const PokedexScreen = ({ navigation }: Props) => {
         }),
       ]).start();
     }
-  }, [isScrolling]);
+  }, [isScrolling, isSearchFocused, searchText]);
 
   const handleScroll = useCallback((event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
@@ -216,7 +222,11 @@ export const PokedexScreen = ({ navigation }: Props) => {
         data={filteredPokemon}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <PokemonCard pokemon={item} onPress={handleOpenDetail} />
+          <PokemonCard
+            pokemon={item}
+            onPress={handleOpenDetail}
+            isCaught={isCaught(item.id)}
+          />
         )}
         contentContainerStyle={[
           styles.listContent,
@@ -264,6 +274,20 @@ export const PokedexScreen = ({ navigation }: Props) => {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {/* ✅ PERMANENT SEARCH BAR AT TOP - Always visible */}
+      <View style={[styles.topSearchContainer, { backgroundColor: colors.background }]}>
+        <SearchAndFilter
+          searchText={searchText}
+          onSearchChange={setSearchText}
+          selectedType={selectedType}
+          onTypeSelect={setSelectedType}
+          availableTypes={availableTypes}
+          onClear={clearFilters}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
+        />
+      </View>
 
       {/* ✅ SEARCH BAR MOVED TO BOTTOM - Only shows when scrolling */}
       <Animated.View
@@ -411,6 +435,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+
+  /* ✅ TOP SEARCH BAR - Always visible */
+  topSearchContainer: {
+    marginBottom: 18,
   },
 
   /* ✅ BOTTOM SEARCH BAR */

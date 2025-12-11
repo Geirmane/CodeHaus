@@ -16,6 +16,8 @@ type Props = {
   onTypeSelect: (type: string | null) => void;
   availableTypes: string[];
   onClear: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
 export const SearchAndFilter = ({
@@ -25,6 +27,8 @@ export const SearchAndFilter = ({
   onTypeSelect,
   availableTypes,
   onClear,
+  onFocus,
+  onBlur,
 }: Props) => {
   const { colors } = useTheme();
   
@@ -54,6 +58,8 @@ export const SearchAndFilter = ({
         <TextInput
           value={searchText}
           onChangeText={onSearchChange}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder="Search by name, type, ability, or #ID"
           placeholderTextColor={colors.borderLight}
           style={[

@@ -8,9 +8,10 @@ import { useTheme } from '../context/ThemeContext';
 type Props = {
   pokemon: PokemonDetail;
   onPress: (pokemonId: number, name: string) => void;
+  isCaught?: boolean;
 };
 
-export const PokemonCard = ({ pokemon, onPress }: Props) => {
+export const PokemonCard = ({ pokemon, onPress, isCaught = false }: Props) => {
   const { colors } = useTheme();
   const spriteUri = getSpriteUri(pokemon.sprites);
 
@@ -20,17 +21,32 @@ export const PokemonCard = ({ pokemon, onPress }: Props) => {
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: colors.border,
+          borderColor: isCaught ? colors.primary : colors.border,
           shadowColor: colors.shadow,
+          borderWidth: isCaught ? 3 : 3,
         },
       ]}
       onPress={() => onPress(pokemon.id, pokemon.name)}
       activeOpacity={0.9}
     >
       <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>
-          {capitalize(pokemon.name)}
-        </Text>
+        <View style={styles.titleContainer}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>
+            {capitalize(pokemon.name)}
+          </Text>
+          {isCaught && (
+            <View
+              style={[
+                styles.caughtBadge,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            >
+              <Text style={styles.caughtBadgeText}>✓</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.headerRight}>
           <Text style={[styles.cardId, { color: colors.textSecondary }]}>
             {formatPokemonId(pokemon.id)}
@@ -94,11 +110,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
   cardTitle: {
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 0.8,
     flex: 1,
+  },
+  caughtBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  caughtBadgeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   headerRight: {
     alignItems: 'flex-end',
