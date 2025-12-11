@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ScrollView,
+  ActivityIndicator,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +18,8 @@ type Props = {
   onClear: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onVoiceSearch?: () => void;
+  isVoiceSearching?: boolean;
 };
 
 export const SearchAndFilter = ({
@@ -29,31 +31,13 @@ export const SearchAndFilter = ({
   onClear,
   onFocus,
   onBlur,
+  onVoiceSearch,
+  isVoiceSearching = false,
 }: Props) => {
   const { colors } = useTheme();
   
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.typeRow}
-      >
-        <FilterChip
-          label="All types"
-          selected={selectedType === null}
-          onPress={() => onTypeSelect(null)}
-        />
-        {availableTypes.map((type) => (
-          <FilterChip
-            key={type}
-            label={type}
-            selected={selectedType === type}
-            onPress={() => onTypeSelect(type)}
-          />
-        ))}
-      </ScrollView>
-
       <View style={styles.searchRow}>
         <TextInput
           value={searchText}
@@ -75,6 +59,23 @@ export const SearchAndFilter = ({
           autoCorrect={false}
           clearButtonMode="while-editing"
         />
+        {onVoiceSearch && (
+          <TouchableOpacity
+            onPress={onVoiceSearch}
+            style={styles.micButton}
+            disabled={isVoiceSearching}
+          >
+            {isVoiceSearching ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <View style={styles.micIconContainer}>
+                {/* Google-style minimal microphone icon */}
+                <View style={[styles.micIconBody, { borderColor: colors.primary }]} />
+                <View style={[styles.micIconStand, { backgroundColor: colors.primary }]} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
         {(searchText || selectedType) && (
           <TouchableOpacity
             onPress={onClear}
@@ -91,43 +92,6 @@ export const SearchAndFilter = ({
         )}
       </View>
     </View>
-  );
-};
-
-type FilterChipProps = {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-};
-
-const FilterChip = ({ label, selected, onPress }: FilterChipProps) => {
-  const { colors } = useTheme();
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          shadowColor: colors.shadow,
-        },
-        selected && {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-      ]}
-      activeOpacity={0.8}
-    >
-      <Text
-        style={[
-          styles.chipText,
-          { color: selected ? '#FFFFFF' : colors.primary },
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
   );
 };
 
@@ -154,6 +118,39 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  micButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  micIconContainer: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  micIconBody: {
+    width: 12,
+    height: 18,
+    borderRadius: 6,
+    borderWidth: 2,
+    position: 'relative',
+    top: 0,
+  },
+  micIconStand: {
+    width: 4,
+    height: 6,
+    position: 'absolute',
+    bottom: -1,
+    left: '50%',
+    marginLeft: -2,
+    borderRadius: 0,
+    borderTopLeftRadius: 1,
+    borderTopRightRadius: 1,
+  },
   clearButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -164,26 +161,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.2,
-  },
-  typeRow: {
-    gap: 6,
-    paddingRight: 12,
-  },
-  chip: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  chipText: {
-    fontWeight: '600',
-    textTransform: 'capitalize',
-    fontSize: 11,
-    letterSpacing: 0.1,
   },
 });
 

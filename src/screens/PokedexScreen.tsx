@@ -151,9 +151,16 @@ export const PokedexScreen = ({ navigation }: Props) => {
         (error) => {
           setIsVoiceSearching(false);
           console.error('Voice search error:', error);
+          
+          const errorMessage = error.message || 'Failed to start voice search.';
+          const isPermissionError = errorMessage.toLowerCase().includes('permission') || 
+                                   errorMessage.toLowerCase().includes('microphone');
+          
           Alert.alert(
             'Voice Search Error',
-            error.message || 'Failed to start voice search. Please check microphone permissions and try again.',
+            isPermissionError 
+              ? 'Microphone permission is required for voice search. Please grant microphone permission in your device settings and try again.'
+              : errorMessage,
             [
               {
                 text: 'OK',
@@ -172,7 +179,16 @@ export const PokedexScreen = ({ navigation }: Props) => {
         ? error.message
         : 'Failed to start voice search. Please ensure the app is properly built and microphone permissions are granted.';
       console.error('Voice search catch error:', error);
-      Alert.alert('Error', errorMessage);
+      
+      const isPermissionError = errorMessage.toLowerCase().includes('permission') || 
+                               errorMessage.toLowerCase().includes('microphone');
+      
+      Alert.alert(
+        'Error',
+        isPermissionError
+          ? 'Microphone permission is required for voice search. Please grant microphone permission in your device settings and try again.'
+          : errorMessage
+      );
       stopVoiceSearch().catch((err) => {
         console.warn('Error stopping voice search in catch:', err);
       });
@@ -316,6 +332,8 @@ export const PokedexScreen = ({ navigation }: Props) => {
           onClear={clearFilters}
           onFocus={() => setIsSearchFocused(true)}
           onBlur={() => setIsSearchFocused(false)}
+          onVoiceSearch={handleVoiceSearch}
+          isVoiceSearching={isVoiceSearching}
         />
       </Animated.View>
     </View>
