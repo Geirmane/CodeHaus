@@ -15,6 +15,9 @@ type Props = {
 export const PokemonCard = ({ pokemon, onPress, isCaught = false, isCapturedInPhoto = false }: Props) => {
   const { colors } = useTheme();
   const spriteUri = getSpriteUri(pokemon.sprites);
+  
+  // Show full image if Pokémon is caught OR captured in a photo
+  const showFullImage = isCaught || isCapturedInPhoto;
 
   return (
     <TouchableOpacity
@@ -22,9 +25,9 @@ export const PokemonCard = ({ pokemon, onPress, isCaught = false, isCapturedInPh
         styles.card,
         {
           backgroundColor: colors.card,
-          borderColor: isCaught ? colors.primary : colors.border,
+          borderColor: showFullImage ? colors.primary : colors.border,
           shadowColor: colors.shadow,
-          borderWidth: isCaught ? 3 : 3,
+          borderWidth: showFullImage ? 3 : 3,
         },
       ]}
       onPress={() => onPress(pokemon.id, pokemon.name)}
@@ -75,7 +78,23 @@ export const PokemonCard = ({ pokemon, onPress, isCaught = false, isCapturedInPh
 
       <View style={styles.spriteContainer}>
         {spriteUri ? (
-          <Image source={{ uri: spriteUri }} style={styles.sprite} resizeMode="contain" />
+          <View style={styles.spriteWrapper}>
+            {showFullImage ? (
+              <Image 
+                source={{ uri: spriteUri }} 
+                style={styles.sprite} 
+                resizeMode="contain" 
+              />
+            ) : (
+              <View style={[styles.shadowContainer, { backgroundColor: colors.background }]}>
+                <Image 
+                  source={{ uri: spriteUri }} 
+                  style={styles.shadowSprite} 
+                  resizeMode="contain" 
+                />
+              </View>
+            )}
+          </View>
         ) : (
           <View
             style={[
@@ -160,9 +179,29 @@ const styles = StyleSheet.create({
     height: 150,
     marginBottom: 16,
   },
+  spriteWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: 150,
+  },
   sprite: {
     width: '100%',
     height: 150,
+  },
+  shadowContainer: {
+    width: '100%',
+    height: 150,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shadowSprite: {
+    width: '100%',
+    height: 150,
+    opacity: 0.3,
+    tintColor: '#000000',
   },
   spritePlaceholder: {
     height: 150,
