@@ -23,6 +23,7 @@ import { capitalize, getSpriteUri } from '../utils/pokemon';
 import { fetchPokemonDetailBundle } from '../services/pokeApi';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { saveCapturedPhoto } from '../services/photos';
+import { saveCaughtPokemon } from '../services/caughtPokemon';
 import { useTheme } from '../context/ThemeContext';
 import { showShareOptions } from '../services/share';
 import RNFS from 'react-native-fs';
@@ -168,11 +169,14 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       return;
     }
 
+    // Get the current Pokémon in the photo before capturing
+    const pokemonInPhoto = currentPokemon;
+    
+    // Clear the pokemon immediately so it disappears from view
+    setCurrentPokemon(null);
+
     try {
       setSavingPhoto(true);
-      
-      // Get the current Pokémon in the photo before capturing
-      const pokemonInPhoto = currentPokemon;
       
       // Take the camera photo
       const photo = await camera.current.takePhoto({
@@ -185,12 +189,25 @@ export const ARCameraScreen = ({ navigation }: Props) => {
       // Add a small delay to ensure the file is fully written
       await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
       
-      // Automatically save photo locally and store metadata in Firestore
+      // Save photo locally and store metadata in Firestore
       await saveCapturedPhoto(
         photo.path,
         pokemonInPhoto?.pokemon.id,
         pokemonInPhoto?.pokemon.name,
       );
+      
+      // Also save to caught pokemon collection (allows multiple captures)
+      if (pokemonInPhoto) {
+        try {
+          await saveCaughtPokemon(
+            pokemonInPhoto.pokemon.id,
+            pokemonInPhoto.pokemon.name,
+          );
+        } catch (error) {
+          console.error('Error saving caught pokemon:', error);
+          // Don't fail the whole operation if caught pokemon save fails
+        }
+      }
       
       console.log('Photo saved successfully, showing alert...');
       
@@ -202,16 +219,7 @@ export const ARCameraScreen = ({ navigation }: Props) => {
         Alert.alert(
           'Captured Successfully!',
           pokemonInPhoto ? `You captured ${capitalize(pokemonInPhoto.pokemon.name)}!` : 'Photo captured successfully!',
-          [
-            { 
-              text: 'OK', 
-              onPress: () => { 
-                console.log('Alert OK pressed, clearing Pokémon');
-                // Clear current Pokémon to allow new spawn
-                setCurrentPokemon(null);
-              } 
-            },
-          ],
+          [{ text: 'OK' }],
         );
       });
     } catch (error: any) {
@@ -472,4 +480,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 });
-

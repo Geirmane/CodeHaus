@@ -26,25 +26,15 @@ export const saveCaughtPokemon = async (
     throw new Error('User must be authenticated to save caught pokemon');
   }
 
-  // Check if already caught
+  // Check if already caught (to determine if we should increment count)
   const existingDoc = await caughtPokemonCollection(user.uid)
     .where('pokemonId', '==', pokemonId)
     .limit(1)
     .get();
 
-  if (!existingDoc.empty) {
-    // Already caught, return existing
-    const doc = existingDoc.docs[0];
-    const data = doc.data();
-    return {
-      pokemonId: data.pokemonId,
-      pokemonName: data.pokemonName,
-      caughtAt: data.caughtAt as FirebaseFirestoreTypes.Timestamp,
-      userId: user.uid,
-    } as CaughtPokemon;
-  }
+  const isNewCatch = existingDoc.empty;
 
-  // Save new caught pokemon
+  // Always save a new caught pokemon entry (allow multiple captures)
   const caughtData = {
     pokemonId,
     pokemonName,
@@ -54,13 +44,15 @@ export const saveCaughtPokemon = async (
 
   const docRef = await caughtPokemonCollection(user.uid).add(caughtData);
 
-  // Update user's caughtCount
-  await firestore()
-    .collection('users')
-    .doc(user.uid)
-    .update({
-      caughtCount: firestore.FieldValue.increment(1),
-    });
+  // Only increment caughtCount if this is a new pokemon species (not already in collection)
+  if (isNewCatch) {
+    await firestore()
+      .collection('users')
+      .doc(user.uid)
+      .update({
+        caughtCount: firestore.FieldValue.increment(1),
+      });
+  }
 
   const savedData = await docRef.get();
   const data = savedData.data();
